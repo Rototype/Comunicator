@@ -1,0 +1,482 @@
+<!--
+Copyright (C) 2020 Stefano Pria <priastefano@stelire.it>
+-->
+<html>
+
+<head>
+    <script>
+        /* WebSocket. */
+        var ws;
+
+        /* Establish connection. */
+        function doConnect(addr) {
+            /* Message to be sent. */
+            var msg;
+
+            /* Do connection. */
+            ws = new WebSocket("ws://" + addr);
+
+            /* Register events. */
+            ws.onopen = function() {
+                document.getElementById("taLog").value += ("Connection opened\n");
+            };
+
+            /* Deals with messages. */
+            ws.onmessage = function(evt) {
+                document.getElementById("taLog").value += ("Recv: " + evt.data + "\n");
+
+                if (evt.data.includes("_InvertImage@Main")) {
+                    start = evt.data.indexOf("[");
+                    end = evt.data.lastIndexOf("]");
+                    base64 = evt.data.substring(start + 1, end);
+                    // document.getElementById("taLog").value += ("Base64: " + base64 + "\n");
+                    rawData = window.atob(base64);
+                    // document.getElementById("taLog").value += ("rawData: " + rawData + "\n");
+
+                    if (rawData.length > 0) {
+                        var a = document.createElement("a");
+                        document.body.appendChild(a);
+                        a.style = "display: none";
+
+                        var u8array = new Uint8Array(rawData.length);
+                        for (var i = 0; i < rawData.length; i++) {
+                            u8array[i] = rawData.charCodeAt(i);
+                        }
+                        blob = new Blob([u8array]);
+                        var url = window.URL.createObjectURL(blob);
+                        a.href = url;
+                        a.download = "received_image.bmp";
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    } else {
+                        window.alert("An error occurred\n(recv image size is zero)");
+                    }
+                }
+            };
+
+            ws.onclose = function() {
+                document.getElementById("taLog").value += ("Connection closed\n");
+            };
+        }
+
+        document.addEventListener("DOMContentLoaded", function(event) {
+            document.getElementById("btConn").onclick = function() {
+                var txt = document.getElementById("txtServer").value;
+                document.getElementById("taLog").value += ("Try to Connect ....\n");
+                doConnect(txt);
+            };
+
+            document.getElementById("btClos").onclick = function() {
+                ws.close();
+            };
+            document.getElementById("btClear").onclick = function() {
+                document.getElementById("taLog").value = ("");
+            };
+            document.getElementById("btClMs").onclick = function() {
+                document.getElementById("txtMsg").value = ("");
+            };
+
+            document.getElementById("btMsg").onclick = function() {
+                var txt = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                document.getElementById("taLog").value += ("Try to send ....\n");
+
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd1").onclick = function() {
+                var txt = "CMD_ReadDigitalInput@Main#";
+                var log = document.getElementById("taLog").value;
+                document.getElementById("taLog").value += ("Try to send ....\n");
+
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd2").onclick = function() {
+                var txt = "CMD_ReadAnalogInput@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "0";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd3").onclick = function() {
+                var txt = "CMD_SetAnalogOutput@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "0,0";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd4").onclick = function() {
+                var txt = "CMD_SetDCMotor@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "1,0";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd5").onclick = function() {
+                var txt = "CMD_SetDCMotorPWM@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "1,1,50";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd6").onclick = function() {
+                var txt = "CMD_SetDCSolenoid@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "1,0";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd7").onclick = function() {
+                var txt = "CMD_SetDCSolenoidPWM@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "1,1,50,300";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd8").onclick = function() {
+                var txt = "CMD_SetStepperMotorSpeed@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "1,on,20,5,100";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd9").onclick = function() {
+                var txt = "CMD_SetStepperMotorCountSteps@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "1,on,20,5,100,500";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd10").onclick = function() {
+                var txt = "CMD_SetDigitalOutput@Main(";
+                var idAna = document.getElementById("txtMsg").value;
+                var log = document.getElementById("taLog").value;
+                if (idAna == '') {
+                    document.getElementById("txtHelp").value = ("Parametri nel campo Message");
+                    idAna = "0,0";
+                } else {
+                    document.getElementById("txtHelp").value = ("");
+                }
+                txt += idAna + ")";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd11").onclick = function() {
+                var txt = 'CMD_UpdateNetworkConfiguration@Main{ "IpAddress" : "192.168.1.12", "DefaultGateway" : "192.168.1.1", "DHCP" : "off" }'
+                var log = document.getElementById("taLog").value;
+                document.getElementById("taLog").value += ("Try to send ....\n");
+
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd12").onclick = function() {
+                var txt = 'CMD_UpdateConfiguration@HWController{ "MechanicalOffset1" : 1024}'
+                var log = document.getElementById("taLog").value;
+                document.getElementById("taLog").value += ("Try to send ....\n");
+
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd13").onclick = function() {
+                var txt = 'CMD_Restart@Main#'
+                var log = document.getElementById("taLog").value;
+                document.getElementById("taLog").value += ("Try to send ....\n");
+
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd14").onclick = function() {
+                var txt = 'CMD_Restart@FPGA#'
+                var log = document.getElementById("taLog").value;
+                document.getElementById("taLog").value += ("Try to send ....\n");
+
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd15").onclick = function() {
+                var txt = 'CMD_Restart@HWController#'
+                var log = document.getElementById("taLog").value;
+                document.getElementById("taLog").value += ("Try to send ....\n");
+
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmd16").onclick = function() {
+                // var txt = 'CMD_InvertImage@Main['
+                var log = document.getElementById("taLog").value;
+                var file = document.getElementById("filename").files[0];
+                // ws.send(txt);
+                document.getElementById("taLog").value += ("Try to send...\n");
+
+                var reader = new FileReader();
+                var rawData = new ArrayBuffer();
+                reader.loadend = function() {}
+                reader.onerror = function(event) {
+                    alert("Failed to read file!\n\n" + reader.error);
+                }
+                reader.onload = function(e) {
+                    var txt = 'CMD_InvertImage@Main['
+                    rawData = e.target.result;
+                    base64Data = window.btoa(rawData);
+                    //ws.send(rawData);
+                    txt += base64Data;
+                    txt += ']';
+                    ws.send(txt);
+
+                    // document.getElementById("taLog").value += ("rawData = " + base64Data + " \n");
+                    document.getElementById("taLog").value += (txt + " \n");
+                    document.getElementById("taLog").value += ("Sended file \n");
+                }
+                reader.readAsBinaryString(file);
+
+                // txt = ']';
+                // ws.send(txt);
+
+                // document.getElementById("taLog").value += ("Send ] \n");
+            };
+
+            document.getElementById("btCmdStartStep").onclick = function() {
+                var txt = "CMD_SetStepperMotorSpeed@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",1,2000,400,50)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmdStopStep").onclick = function() {
+                var txt = "CMD_SetStepperMotorSpeed@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",1,0,400,50)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmdBrakeStep").onclick = function() {
+                var txt = "CMD_SetStepperMotorSpeed@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",brake,2000,400,50)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmdSlowStep").onclick = function() {
+                var txt = "CMD_SetStepperMotorCountSteps@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",1,180,0,50,500)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmdFastStep").onclick = function() {
+                var txt = "CMD_SetStepperMotorCountSteps@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",1,5000,800,50,20000)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmdStartDC").onclick = function() {
+                var txt = "CMD_SetDCMotorPWM@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",1,40,50)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmdStopDC").onclick = function() {
+                var txt = "CMD_SetDCMotor@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",0)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmdSolenoidOn").onclick = function() {
+                var txt = "CMD_SetDCSolenoidPWM@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",1,20,400)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+            document.getElementById("btCmdSolenoidOff").onclick = function() {
+                var txt = "CMD_SetDCSolenoid@Main(";
+                var id = document.getElementById("txtMotorId").value;
+                var log = document.getElementById("taLog").value;
+                txt += id;
+                txt += ",0)";
+                document.getElementById("txtMsg").value = ("");
+                document.getElementById("taLog").value += ("Try to send ....\n");
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+
+            document.getElementById("btReadConfigHWC").onclick = function() {
+                var txt = 'CMD_ReadConfiguration@HWController#'
+                var log = document.getElementById("taLog").value;
+                document.getElementById("taLog").value += ("Try to send ....\n");
+
+                ws.send(txt);
+                document.getElementById("taLog").value += ("Send: " + txt + "\n");
+            };
+        });
+    </script>
+</head>
+
+<body>
+
+    <div id="header">
+        <h1 align="left">TEST WEB SOCKET SERVER @stelire.it</h1>
+        <div align="right">versione modificata</div>
+
+        Message: <input type="text" id="txtMsg" value="">
+        <input type="button" id="btMsg" name="btMsg" value="Send">
+        <input type="button" id="btClMs" name="btClMs" value="Clear Message">
+        <br />
+        <input type="button" id="btCmd1" name="btCmd1" value="ReadDigitalInput">
+        <input type="button" id="btCmd2" name="btCmd2" value="ReadAnalogInput">
+        <input type="button" id="btCmd3" name="btCmd3" value="WriteAnalogOutput">
+        <input type="button" id="btCmd10" name="btCmd10" value="WriteDigitalOutput">
+        <br />
+        <input type="button" id="btCmd4" name="btCmd4" value="SetDCMotor">
+        <input type="button" id="btCmd5" name="btCmd5" value="SetDCMotorPWM">
+        <input type="button" id="btCmd6" name="btCmd6" value="SetDCSolenoid">
+        <input type="button" id="btCmd7" name="btCmd7" value="SetDCSolenoidPWM">
+        <br />
+        <input type="button" id="btCmd8" name="btCmd8" value="SetStepMotor">
+        <input type="button" id="btCmd9" name="btCmd9" value="SetStepMotorSteps">
+        <br /><br /> Motor id : <input type="text" id="txtMotorId" value="0">
+        <br />
+        <input type="button" id="btCmdStartStep" name="btCmdStartStep" value="StartStepperMotor">
+        <input type="button" id="btCmdStopStep" name="btCmdStopStep" value="StopStepperMotor">
+        <input type="button" id="btCmdBrakeStep" name="btCmdBrakeStep" value="BrakeStepperMotor">
+        <input type="button" id="btCmdSlowStep" name="btCmdSlowStep" value="SlowStepperMotor">
+        <input type="button" id="btCmdFastStep" name="btCmdFastStep" value="FastStepperMotor">
+        <br />
+        <input type="button" id="btCmdStartDC" name="btCmdStartDC" value="StartDCMotor">
+        <input type="button" id="btCmdStopDC" name="btCmdStopDC" value="StopDCMotor">
+        <input type="button" id="btCmdSolenoidOn" name="btCmdSolenoidOn" value="StartSolenoid">
+        <input type="button" id="btCmdSolenoidOff" name="btCmdSolenoidOff" value="StopSolenoid">
+        <br /><br />
+        <input type="button" id="btCmd11" name="btCmd11" value="UpdateNetworkParameter">
+        <input type="button" id="btCmd12" name="btCmd12" value="UpdateParameter">
+        <input type="button" id="btReadConfigHWC" name="btReadConfigHWC" value="ReadConfiguration HWController">
+        <br />
+        <input type="button" id="btCmd13" name="btCmd13" value="Restart MC">
+        <input type="button" id="btCmd14" name="btCmd14" value="Restart FPGA">
+        <input type="button" id="btCmd15" name="btCmd15" value="Restart HWController">
+        <br />
+        <input type="button" id="btCmd16" name="btCmd16" value="SendBitmapImage">
+        <h2>File Image Upload</h2>
+        Select file
+        <input type="file" id="filename" />
+        <br />
+        <input type="button" id="btClear" name="btClear" value="ClearListMsg"> Aiuto: <input type="text" id="txtHelp" value="">
+        <br />
+        <input type="button" id="btConn" name="btConn" value="Connect!"> Server: <input type="text" id="txtServer" value="169.254.10.10:5001">
+        <input type="button" id="btClos" name="btClos" value="Close!">
+        <br />
+        <textarea rows="24" cols="100" id="taLog" name="taLog"></textarea>
+    </div>
+</body>
+
+</html>
