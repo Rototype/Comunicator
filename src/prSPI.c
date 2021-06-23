@@ -2,6 +2,7 @@
 #include "extern.h"
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include "define.h" // CROSS_DEBUG
 
 /*********************** DEFINE CONSTANTS SECTION *********************/
 // Caratteri speciali del protocollo
@@ -12,9 +13,10 @@
 #define NAK 0x15
 #define ETB 0x17
 
-//#define DEBUG_PRINT 1                           // Disabilito le stampe di debug
-//#define SIMULA_RISPOSTA 1                         // Simula la risposta dalla SPI HWC
-
+#ifdef CROSS_DEBUG
+  #define DEBUG_PRINT 1                           // Disabilito le stampe di debug
+  #define SIMULA_RISPOSTA 1                         // Simula la risposta dalla SPI HWC
+#endif
 /*********************** GLOBAL VARIABLES SECTION *********************/
 struct SendArea AreaSpi ;
 struct protoManage *ProtoConnect ;                    // Variabile di gestione della comunicazione su questo canale
@@ -847,6 +849,9 @@ void inviaNPL(int fd, int len) {
 #ifdef DEBUG_PRINT
   printf("invio Next Packet Length %d su client %d > %.2X %.2X\n", len, fd, npl[0], npl[1]);
 #endif
+
+#ifndef CROSS_DEBUG
+
   int ok = write(fd, npl, SPI_PROTO_NPL_SIZE);
   if (ok < 0) {
     trace(__LINE__,__FILE__,1000,0,0,"Error write Next Packet Length, error %d = %s",errno,strerror(errno));
@@ -854,6 +859,9 @@ void inviaNPL(int fd, int len) {
   else if (ok > SPI_PROTO_NPL_SIZE) {
     trace(__LINE__,__FILE__,1000,0,0,"Next Packet Length write %d bytes (have to be %d), this is weird", ok, SPI_PROTO_NPL_SIZE);
   }
+
+#endif
+
   usleep(SPI_PROTO_TX_INTERVAL_MS*1000);
 }
 

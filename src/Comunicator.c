@@ -1,6 +1,24 @@
 /************************** INCLUDE MAIN APPLICATION SECTION *****************************/
 #include "global.h"
 
+#ifdef CROSS_DEBUG
+// backported (obsolete function)
+#include <errno.h>
+int stime (const time_t *when)
+{
+  struct timeval tv;
+  if (when == NULL)
+    {
+      errno = EINVAL;
+      return -1;
+    }
+  tv.tv_sec = *when;
+  tv.tv_usec = 0;
+  return settimeofday (&tv, (struct timezone *) 0);
+}
+
+#endif
+
 /************************** PROTOTYPE INTERNAL FUNCTION DECLARATED  **********************/
 void msec_sleep(int);
 int checkDb(int);
@@ -323,8 +341,11 @@ printf("Dichiarato canale GPIO questa configurazione e' valida solo per CustomBo
   }
 
   while(1){
+// skipping the pthread_exit() function keeps the process alive so we can see the console messages
+#ifndef CROSS_DEBUG
     pthread_exit(0); // S'addormenta per sempre .......
-//    msec_sleep(60000);                                      // S'addormenta per 1 minuto e poi ritorna qui .....
+#endif    
+    msec_sleep(60000);                                      // S'addormenta per 1 minuto e poi ritorna qui .....
   }
 
 }
@@ -884,10 +905,10 @@ int openSPI(char * line ,int clk,int cpha,int cpol,int csh, int sw_proto)
   ptr[act_client]->sav_handle= open(line, O_RDWR);
   spi_d = ptr[act_client]->sav_handle; 
   
-  if(spi_d<=0){
-        trace(__LINE__,__FILE__,1000,0,0,"Error open line %s Ret:%d - errno %d : %s",line,spi_d,errno,strerror(errno));
-      }
-      else
+  // if(spi_d<=0){
+  //       trace(__LINE__,__FILE__,1000,0,0,"Error open line %s Ret:%d - errno %d : %s",line,spi_d,errno,strerror(errno));
+  //     }
+  //     else
       {
 /*
    if ( fcntl(sok_d, F_SETFL, O_ASYNC | O_NONBLOCK) < 0 )  {

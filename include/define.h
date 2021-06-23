@@ -1,3 +1,10 @@
+/*
+   Enable some function to allow testing of the communication without 
+   the actual hardware (cross-compiled on Ubuntu x86)
+*/
+
+ #define CROSS_DEBUG    1
+
 /************************** DEFINE DEFAULT SECTION **********************************/
 #define NOME "CHIOSCO Ver." /* Nome del programma e versione */
 #define VER 3

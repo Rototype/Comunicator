@@ -990,7 +990,7 @@ FILE * fin;
 //  output = write(fd,response,idx_response);                   			// Invio richiesta sulla linea
 
   output = sendsock(fd, response, idx_response,0);
-printf("SendSock %d tot car %d %s\n",fd,idx_response,response);
+printf("SendSock %d tot car %d %s\n",fd,idx_response,response + idx_first_rData);
 
   free(response);
   return (output);
