@@ -438,8 +438,13 @@ printf("Comando %s \n",CMD_tab[kk]);
 		if(!(strcmp(brr[1],SlaveUnit[0]))){               // Accetto solo Main unit
 		  trace(__LINE__,__FILE__,404,0,0,"Richiesto Update Network Configuration");
 		  if(!parseJson(brr[2])){                   // Interpreto la stringa JSON per gestire i parametri
-			sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateNetworkConfiguration],SlaveUnit[0]);
-			SendCmd_WebSocket(Connect->client,Connect->appo_bus,2); // Invio risposta al Client WebSocket
+        FILE* networkfile = fopen(FILE_NETWORK_JSON, "w");
+        fwrite("{", sizeof(unsigned char), 1, networkfile);
+        fwrite(brr[2], sizeof(unsigned char), strlen(brr[2]), networkfile);
+        fwrite("}", sizeof(unsigned char), 1, networkfile);
+        fclose(networkfile);
+  			sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateNetworkConfiguration],SlaveUnit[0]);
+	  		SendCmd_WebSocket(Connect->client,Connect->appo_bus,2); // Invio risposta al Client WebSocket
 		  }
 		  else{                           // In caso di errore non risponde
 			trace(__LINE__,__FILE__,404,0,0,"Errore stringa JSON %s",brr[2]);

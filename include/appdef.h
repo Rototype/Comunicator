@@ -19,6 +19,7 @@
 #define FILE_IMG_TX_BINARY	"img/tx_binary"						// Nome file su cui si riceve da Zynq l'immagine eleborata in binary
 #define FILE_IMG_TX_BASE64	"img/tx_base64"						// Nome file su cui si salva l'immagine elaborata in Base64 per rimandarla al WebSocket
 
+#define FILE_NETWORK_JSON	"etc/network.json"				// Path del file dove salvare la network config ricevuta in formato json
 #define FILE_CONFIG_JSON	"etc/config.json"				// Path del file da utlizzare per salvare la config inviata alla MainUnit in formato json
 #define HWC_CONFIG_MAX_BLOCK_SIZE	57
 #define HWC_EEPROM_MAX_SIZE_BYTES	4096
