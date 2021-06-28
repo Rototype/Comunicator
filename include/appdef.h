@@ -34,9 +34,9 @@
 #define SPI_PROTO_TX_INTERVAL_MS 	2					// intervallo di tempo (in ms) fra invio Next Packet Length e invio dati
 
 // Definizioni per send image
-#define IMG_LOCAL_INTERFACE		"192.168.1.2"			// Interfaccia locale da cui inviare l'immagine
+#define IMG_LOCAL_INTERFACE		"192.168.121.2"			// Interfaccia locale da cui inviare l'immagine
 #define IMG_LOCAL_PORT			52200					// Porta su cui ricevere l'immagine invertita
-#define IMG_ZYNQ_IP_ADDR		"192.168.1.10"			// Indirizzo ip per inviare l'immagine alla zynq
+#define IMG_ZYNQ_IP_ADDR		"192.168.121.232"		// Indirizzo ip per inviare l'immagine alla zynq
 #define IMG_ZYNQ_PORT			5001					// Porta su cui inviare l'immagine alla zynq
 #define IMG_SENDCMD_TIMEOUT		5						// Timeout del comando di send (in secondi)
 #define IMG_LENBLK_LIMIT		4610					// Limite di pacchetti websocket per la ricezione immagine ( ~6.5 MB)

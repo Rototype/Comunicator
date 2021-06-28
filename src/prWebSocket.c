@@ -534,8 +534,9 @@ printf("Comando %s \n",CMD_tab[kk]);
 				rc = traduci(brr[3],1);                 // Trasformo la stringa in un valore
 				if(rc != PAR_val[PARTOT-1]) Connect->tx_var[1] = rc ;   // Se stringa trovata
 			  }
-			  if((Connect->tx_var[1]==-1 || Connect->tx_var[1]==0 || Connect->tx_var[1]==1 ) && Connect->tx_var[2]>=0 && Connect->tx_var[2]<=100 )
-				  // Se valore compreso fra -1 0 1      e percentuale di PWM tra 0 e 100
+        printf("freq pwm = %d\n", Connect->tx_var[3]);
+			  if((Connect->tx_var[1]==-1 || Connect->tx_var[1]==0 || Connect->tx_var[1]==1 ) && Connect->tx_var[2]>=0 && Connect->tx_var[2]<=100 && Connect->tx_var[3]>=20 && Connect->tx_var[3]<=100 && (Connect->tx_var[3] % 5) == 0)
+				  // Se valore compreso fra -1 0 1      e percentuale di PWM tra 0 e 100      e frequenza PWM fra 20 e 100 kHz  e frequenza a step di 5 kHz
 				SendEventRequest(Connect,CMD_SetDCMotorPWM);       // Invio evento richiesta alla SPI
 			  else trace(__LINE__,__FILE__,404,0,0,"Parametro del comando CMD_SetDCMotorPWM non riconosciuto <%s><%s>",brr[3],brr[4]);
 		  }
