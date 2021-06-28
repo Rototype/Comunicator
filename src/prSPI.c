@@ -214,7 +214,7 @@ printf("Handle %d Sono entrato nello smaltimento della coda comandi SPI %ld\n",C
           if (p->parint[1] == 0) {
             appo = 0;
           }
-          else if (p->parint[1] > 0) {
+          else if ((p->parint[1]>>31) == 0) {
             appo = 1;
           }
           else {
@@ -302,10 +302,10 @@ printf("Handle %d Sono entrato nello smaltimento della coda comandi SPI %ld\n",C
           Connect->appo_bus[kk++] = (p->parint[1] & 0xFF) ;
           Connect->appo_bus[kk++] = ((p->parint[4]>>8) & 0xFF) ;// Current load 50 o 100%
           Connect->appo_bus[kk++] = (p->parint[4] & 0xFF) ;
-          if(p->parint[2]<0) {
-          appo = 2 ;                      // Setto direzione ccw
-          p->parint[2] = (-p->parint[2]) ;          // Riporto il valore della speed in positivo per il comando
-            }
+          if((p->parint[2]>>31) == 1) {
+            appo = 2 ;                      // Setto direzione ccw
+            p->parint[2] = (-p->parint[2]) ;          // Riporto il valore della speed in positivo per il comando
+          }
           else appo = 1;                    // Setto direzione cw
           if (p->parint[1] == 0) {
             appo = 0;
