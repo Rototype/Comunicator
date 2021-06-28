@@ -239,7 +239,7 @@ printf("Coda WEB SOCKET smaltita %ld\n",TAU_PLC);
 }
 void Interpreta_WebSocket(struct connectManage *Connect)
 {
-int kk,rc;
+int kk,rc, appo;
 char **brr = NULL ;
 static int out_fd ;
 static long lenBlk = 0 ;
@@ -661,7 +661,14 @@ printf("Comando %s \n",CMD_tab[kk]);
 			  Connect->tx_var[2] = atoi(brr[4])  ;            // valore della speed con segno
 			  Connect->tx_var[3] = atoi(brr[5])  ;            // valore della maxacceleration
 			  Connect->tx_var[4] = atoi(brr[6])  ;            // 50 o 100 % di carico
-			  Connect->tx_var[5] = atoi(brr[7])  ;            // numero di steps da eseguire
+			  appo = atoi(brr[7])  ;                          // numero di steps da eseguire
+        if (appo < 0) {
+          Connect->tx_var[2] = -Connect->tx_var[2];
+          Connect->tx_var[5] = -appo;
+        }
+        else {
+          Connect->tx_var[5] = appo;
+        }
 			  Connect->tx_var[6] = CMD_SetStepperMotorCountSteps ;        // Mi salvo il comando a cui rispondere
 			  if (brr[3][0]>='0' && brr[3][0]<='9' ) Connect->tx_var[1] = atoi(brr[3]) ;
 			  else {
