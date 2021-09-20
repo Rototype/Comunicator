@@ -2,7 +2,6 @@
 #include "extern.h"
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include "define.h" // CROSS_DEBUG
 
 /*********************** DEFINE CONSTANTS SECTION *********************/
 // Caratteri speciali del protocollo
@@ -13,10 +12,9 @@
 #define NAK 0x15
 #define ETB 0x17
 
-#ifdef CROSS_DEBUG
-  #define DEBUG_PRINT 1                           // Disabilito le stampe di debug
-  #define SIMULA_RISPOSTA 1                         // Simula la risposta dalla SPI HWC
-#endif
+//#define DEBUG_PRINT 1                           // Disabilito le stampe di debug
+//#define SIMULA_RISPOSTA 1                         // Simula la risposta dalla SPI HWC
+
 /*********************** GLOBAL VARIABLES SECTION *********************/
 struct SendArea AreaSpi ;
 struct protoManage *ProtoConnect ;                    // Variabile di gestione della comunicazione su questo canale
@@ -216,7 +214,7 @@ printf("Handle %d Sono entrato nello smaltimento della coda comandi SPI %ld\n",C
           if (p->parint[1] == 0) {
             appo = 0;
           }
-          else if (p->parint[1] > 0) {
+          else if ((p->parint[1]>>31) == 0) {
             appo = 1;
           }
           else {
@@ -304,10 +302,10 @@ printf("Handle %d Sono entrato nello smaltimento della coda comandi SPI %ld\n",C
           Connect->appo_bus[kk++] = (p->parint[1] & 0xFF) ;
           Connect->appo_bus[kk++] = ((p->parint[4]>>8) & 0xFF) ;// Current load 50 o 100%
           Connect->appo_bus[kk++] = (p->parint[4] & 0xFF) ;
-          if(p->parint[2]<0) {
-          appo = 2 ;                      // Setto direzione ccw
-          p->parint[2] = (-p->parint[2]) ;          // Riporto il valore della speed in positivo per il comando
-            }
+          if((p->parint[2]>>31) == 1) {
+            appo = 2 ;                      // Setto direzione ccw
+            p->parint[2] = (-p->parint[2]) ;          // Riporto il valore della speed in positivo per il comando
+          }
           else appo = 1;                    // Setto direzione cw
           if (p->parint[1] == 0) {
             appo = 0;
@@ -594,7 +592,7 @@ printf("                    Cliente           %d \n",Connect->last_id_send);
   return 0 ;
 }
 
-int param[2];
+static int param[2];
 
 int Connect_SPIso2110(struct connectManage *Connect)
 {
@@ -849,9 +847,6 @@ void inviaNPL(int fd, int len) {
 #ifdef DEBUG_PRINT
   printf("invio Next Packet Length %d su client %d > %.2X %.2X\n", len, fd, npl[0], npl[1]);
 #endif
-
-#ifndef CROSS_DEBUG
-
   int ok = write(fd, npl, SPI_PROTO_NPL_SIZE);
   if (ok < 0) {
     trace(__LINE__,__FILE__,1000,0,0,"Error write Next Packet Length, error %d = %s",errno,strerror(errno));
@@ -859,9 +854,6 @@ void inviaNPL(int fd, int len) {
   else if (ok > SPI_PROTO_NPL_SIZE) {
     trace(__LINE__,__FILE__,1000,0,0,"Next Packet Length write %d bytes (have to be %d), this is weird", ok, SPI_PROTO_NPL_SIZE);
   }
-
-#endif
-
   usleep(SPI_PROTO_TX_INTERVAL_MS*1000);
 }
 

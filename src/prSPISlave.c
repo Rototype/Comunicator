@@ -2,7 +2,6 @@
 #include "extern.h"
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include "define.h" // CROSS_DEBUG
 
 /**              Caratteri speciali del protocollo  				  */
 #define STX 0x02
@@ -12,12 +11,9 @@
 #define NAK 0x15
 #define ETB 0x17
 
-#ifdef CROSS_DEBUG
-  #define DEBUG_PRINT 1                           // Disabilito le stampe di debug
-  #define SIMULA_RISPOSTA 1                         // Simula la risposta dalla SPI HWC
-  #define DISABLE_ACK 1										// Disabilita l'invio di ACK e NACK (solo per motivi di testing/debugging)
-  #define DISABLE_ACK_TIMEOUT_HANDLER 1						// Disabilita la ritrasmissione dell'ultimo comando in caso di timeout ACK
-#endif
+//#define DEBUG_PRINT 1 										// Disabilito le stampe di debug
+//#define DISABLE_ACK 1										// Disabilita l'invio di ACK e NACK (solo per motivi di testing/debugging)
+//#define DISABLE_ACK_TIMEOUT_HANDLER 1						// Disabilita la ritrasmissione dell'ultimo comando in caso di timeout ACK
 
 #define TIMEOUT_ACK 			(500/TAU) 					// Timeout a 500 msec sull'attesa di risposta ACK NAK
 #define MAX_RETRANSMISSIONS		5							// Numero massimo di ritrasmissioni comandi in caso di mancata ricezione ACK / NAK	

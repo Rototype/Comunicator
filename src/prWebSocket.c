@@ -239,7 +239,7 @@ printf("Coda WEB SOCKET smaltita %ld\n",TAU_PLC);
 }
 void Interpreta_WebSocket(struct connectManage *Connect)
 {
-int kk,rc;
+int kk,rc, appo;
 char **brr = NULL ;
 static int out_fd ;
 static long lenBlk = 0 ;
@@ -534,8 +534,9 @@ printf("Comando %s \n",CMD_tab[kk]);
 				rc = traduci(brr[3],1);                 // Trasformo la stringa in un valore
 				if(rc != PAR_val[PARTOT-1]) Connect->tx_var[1] = rc ;   // Se stringa trovata
 			  }
-			  if((Connect->tx_var[1]==-1 || Connect->tx_var[1]==0 || Connect->tx_var[1]==1 ) && Connect->tx_var[2]>=0 && Connect->tx_var[2]<=100 )
-				  // Se valore compreso fra -1 0 1      e percentuale di PWM tra 0 e 100
+        printf("freq pwm = %d\n", Connect->tx_var[3]);
+			  if((Connect->tx_var[1]==-1 || Connect->tx_var[1]==0 || Connect->tx_var[1]==1 ) && Connect->tx_var[2]>=0 && Connect->tx_var[2]<=100 && Connect->tx_var[3]>=20 && Connect->tx_var[3]<=100 && (Connect->tx_var[3] % 5) == 0)
+				  // Se valore compreso fra -1 0 1      e percentuale di PWM tra 0 e 100      e frequenza PWM fra 20 e 100 kHz  e frequenza a step di 5 kHz
 				SendEventRequest(Connect,CMD_SetDCMotorPWM);       // Invio evento richiesta alla SPI
 			  else trace(__LINE__,__FILE__,404,0,0,"Parametro del comando CMD_SetDCMotorPWM non riconosciuto <%s><%s>",brr[3],brr[4]);
 		  }
@@ -660,7 +661,14 @@ printf("Comando %s \n",CMD_tab[kk]);
 			  Connect->tx_var[2] = atoi(brr[4])  ;            // valore della speed con segno
 			  Connect->tx_var[3] = atoi(brr[5])  ;            // valore della maxacceleration
 			  Connect->tx_var[4] = atoi(brr[6])  ;            // 50 o 100 % di carico
-			  Connect->tx_var[5] = atoi(brr[7])  ;            // numero di steps da eseguire
+			  appo = atoi(brr[7])  ;                          // numero di steps da eseguire
+        if (appo < 0) {
+          Connect->tx_var[2] = -Connect->tx_var[2];
+          Connect->tx_var[5] = -appo;
+        }
+        else {
+          Connect->tx_var[5] = appo;
+        }
 			  Connect->tx_var[6] = CMD_SetStepperMotorCountSteps ;        // Mi salvo il comando a cui rispondere
 			  if (brr[3][0]>='0' && brr[3][0]<='9' ) Connect->tx_var[1] = atoi(brr[3]) ;
 			  else {
@@ -990,7 +998,7 @@ FILE * fin;
 //  output = write(fd,response,idx_response);                   			// Invio richiesta sulla linea
 
   output = sendsock(fd, response, idx_response,0);
-printf("SendSock %d tot car %d %s\n",fd,idx_response,response + idx_first_rData);
+printf("SendSock %d tot car %d %s\n",fd,idx_response,response);
 
   free(response);
   return (output);

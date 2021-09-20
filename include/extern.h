@@ -13,9 +13,9 @@ extern char nome_mese[];
 extern char NOME_DB[];
 extern char DATANOME[];
 // Default struttura dati I/O 8 uscite e 8 INGRESSI... il file IMPIANTO.CONF puo' riconfigurare questi valori
-int nome_sgn[TOT_SGN];
-int func_sgn[TOT_SGN];
-int resource_id[TOT_SGN];
+extern int nome_sgn[TOT_SGN];
+extern int func_sgn[TOT_SGN];
+extern int resource_id[TOT_SGN];
 
 extern int genliv; 
 extern char retValue[];
