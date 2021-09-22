@@ -725,6 +725,8 @@ printf("\n");
 	//    SendCmd_WebSocket(Connect->client,Connect->appo_bus,0);
 		break;
 	  }
+    for (int i = 0; i != rc; i++)
+  	  free(brr[i]);
 	  free(brr); // Libero l'area di split del comando
 	  }
 	  else {

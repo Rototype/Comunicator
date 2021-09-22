@@ -102,7 +102,6 @@ int numGiorno(char *);
 void dammi_mac(char *);
 void aggiorna_hosts(char * ,int );
 void aggiorna_hostname(char * );
-int split (char *, char , char ***);
 void trim(char * );
 long dammiSec(char *) ;
 /************************** PROTOTYPE REFERENCES FUNCTION DECLARATIONS SECTION *****************/

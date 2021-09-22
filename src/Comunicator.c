@@ -2437,70 +2437,74 @@ int instring(char *str, char c)
     }
     return(0); // Non trovato
 }
-/**
- * Funzione che separa una stringa in un vettore di strighe 
- * controllando il separatore indicato
+/***********************************************************************
  * stringa da separare
- * carattere separatore
+ * stringa di separatori
  * array di stringhe con i singoli valori separati
  * Una volta che la funzione rientra dopo aver adoperato l'array di stringhe
  * si deve liberare la memoria con una free(arr) ;
  * */
-int split (char *str, char c, char ***arr)                
+int splitstr(char *str, char *sepa, char ***arr)
 {
     int count = 1;
     int token_len = 1;
     int i = 0;
     char *p;
     char *t;
+  int kk,jj,trov ;
 
+  kk = strlen(sepa) ;                         							// Quanti separatori devo gestire ?
     p = str;
     while (*p != '\0')
     {
-        if (*p == c)
-            count++;
+    for(jj=0;jj<kk;jj++) if (*p == sepa[jj] ) count++;
         p++;
     }
 
-    *arr = (char**) malloc(sizeof(char*) * count);
-    if (*arr == NULL)
-        return(0);
+    *arr = (char**) malloc(sizeof(char*) * count);            			// Mi alloco il numero di puntatori che mi serviranno
+    if (*arr == NULL) return(0);
 
     p = str;
     while (*p != '\0')
     {
-        if (*p == c)
+    for(trov=jj=0;jj<kk;jj++) if(*p == sepa[jj]){trov=1;break;}
+        if ( trov )
         {
-            (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
-            if ((*arr)[i] == NULL)
-                return(0);
-
-            token_len = 0;
-            i++;
+          (*arr)[i] = (char*) malloc( sizeof(char) * token_len );   	// Mi alloco lo spazio per i singoli array
+          if ((*arr)[i] == NULL) return(0);
+      token_len = 0;
+          i++;
         }
         p++;
         token_len++;
     }
-    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
-    if ((*arr)[i] == NULL)
-        return(0);
+
+  if(token_len>1) {
+    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );     		// Mi alloco lo spazio per l'ultima stringa se non c'e' un separatore come ultimo carattere
+    if ((*arr)[i] == NULL) return(0);
+  }
+  else count--;                           								// Altrimenti ho un array in meno
 
     i = 0;
     p = str;
     t = ((*arr)[i]);
     while (*p != '\0')
     {
-        if (*p != c && *p != '\0')
+    for(trov=jj=0;jj<kk;jj++) if(*p == sepa[jj]){trov=1;break;}
+
+        if (!(trov) && (*p != '\0'))
         {
             *t = *p;
             t++;
-            *t = '\0'; // ipotesi che ci sara' un fine stringa
+            *t = '\0';                          						// ipotesi che ci sara' un fine stringa
         }
         else
         {
-            *t = '\0';
-            i++;
-            t = ((*arr)[i]);
+      if(*(p+1)!='\0'){                     							// Se non sono sul fine stringa apro un altro array
+        *t = '\0';
+        i++;
+        t = ((*arr)[i]);
+      }
         }
         p++;
     }
