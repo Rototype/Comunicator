@@ -23,7 +23,7 @@ void Interpreta_WebSocket(struct connectManage *) ;
 
 // Puntatore alla struttura di gestione del canale di comunicazione
 struct protoManage *ProtoConnectWb ;
-
+extern int splitstr(char *str, char *sepa, char ***arr);
 extern struct SendArea AreaSpi ;                    // Variabile globale per inviare l'evento al driver SPI
 
 extern int img_lenblk_limit_on;

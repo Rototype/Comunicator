@@ -29,6 +29,7 @@ int caricaFileNelDB(char *);
 int fileCpy(char *,char *);
 int fileTxtCpy(char *,char *);
 int setta_ora(void);
+int openSPI(char * line ,int clk,int cpha,int cpol,int csh, int sw_proto);
 
 extern void InitConnection(int,struct connectManage * );
 extern int init_plc(int);
@@ -98,9 +99,9 @@ double fappo;
     shared_memory = memory(ii,kk);
     trace(__LINE__,__FILE__,3001,0,0,"--------------- Allocata memoria condivisa nome %d size %d address %lX",ii,kk,shared_memory);
 //printf("size short %d size int %d size int %d\n",sizeof(short),sizeof(int),sizeof(int));
-    A = (unsigned int *) shared_memory ; // Area condivisa dei device
-    P = (unsigned int *)(shared_memory + (MAX_A*sizeof(int))) ;
-    W = (unsigned int *)(shared_memory + (MAX_A*sizeof(int)) + (MAX_P*sizeof(int))) ;
+    A = (unsigned long *) shared_memory ; // Area condivisa dei device
+    P = (unsigned long *)(shared_memory + (MAX_A*sizeof(int))) ;
+    W = (unsigned long *)(shared_memory + (MAX_A*sizeof(int)) + (MAX_P*sizeof(int))) ;
   }
   else {
     A = malloc(MAX_A*sizeof(int)) ;
@@ -2441,8 +2442,8 @@ int instring(char *str, char c)
  * stringa da separare
  * stringa di separatori
  * array di stringhe con i singoli valori separati
- * Una volta che la funzione rientra dopo aver adoperato l'array di stringhe
- * si deve liberare la memoria con una free(arr) ;
+ * Una volta          che la funzione rientra dopo aver adoperato l'array di stringhe
+ * si deve liberare la memoria con una free(arr) ; Se bah... Piacerebbe.
  * */
 int splitstr(char *str, char *sepa, char ***arr)
 {
@@ -2510,79 +2511,7 @@ int splitstr(char *str, char *sepa, char ***arr)
     }
     return count;
 }
-/***********************************************************************
- * stringa da separare
- * stringa di separatori
- * array di stringhe con i singoli valori separati
- * Una volta che la funzione rientra dopo aver adoperato l'array di stringhe
- * si deve liberare la memoria con una free(arr) ;
- * */
-int splitstr(char *str, char *sepa, char ***arr)
-{
-    int count = 1;
-    int token_len = 1;
-    int i = 0;
-    char *p;
-    char *t;
-  int kk,jj,trov ;
 
-  kk = strlen(sepa) ;                         							// Quanti separatori devo gestire ?
-    p = str;
-    while (*p != '\0')
-    {
-    for(jj=0;jj<kk;jj++) if (*p == sepa[jj] ) count++;
-        p++;
-    }
-
-    *arr = (char**) malloc(sizeof(char*) * count);            			// Mi alloco il numero di puntatori che mi serviranno
-    if (*arr == NULL) return(0);
-
-    p = str;
-    while (*p != '\0')
-    {
-    for(trov=jj=0;jj<kk;jj++) if(*p == sepa[jj]){trov=1;break;}
-        if ( trov )
-        {
-          (*arr)[i] = (char*) malloc( sizeof(char) * token_len );   	// Mi alloco lo spazio per i singoli array
-          if ((*arr)[i] == NULL) return(0);
-      token_len = 0;
-          i++;
-        }
-        p++;
-        token_len++;
-    }
-
-  if(token_len>1) {
-    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );     		// Mi alloco lo spazio per l'ultima stringa se non c'e' un separatore come ultimo carattere
-    if ((*arr)[i] == NULL) return(0);
-  }
-  else count--;                           								// Altrimenti ho un array in meno
-
-    i = 0;
-    p = str;
-    t = ((*arr)[i]);
-    while (*p != '\0')
-    {
-    for(trov=jj=0;jj<kk;jj++) if(*p == sepa[jj]){trov=1;break;}
-
-        if (!(trov) && (*p != '\0'))
-        {
-            *t = *p;
-            t++;
-            *t = '\0';                          						// ipotesi che ci sara' un fine stringa
-        }
-        else
-        {
-      if(*(p+1)!='\0'){                     							// Se non sono sul fine stringa apro un altro array
-        *t = '\0';
-        i++;
-        t = ((*arr)[i]);
-      }
-        }
-        p++;
-    }
-    return count;
-}
 /**
  *  Conversione da long ad indirizzo IP ASCII
  * **/
@@ -2641,7 +2570,7 @@ void replace(char * strstr,char s,char d)
 int kk,jj ;
   for (kk = 0 ;strstr[kk]!=0 ;kk++) {
     if(strstr[kk]==s) {                         // Sostituzione del carattere ricercato
-      if(d==NULL){                            // Se si vuole togliere
+      if(d==0){                            // Se si vuole togliere
         for(jj=kk;strstr[jj]!=0;jj++) strstr[jj]=strstr[jj+1] ;     // Compatto la stringa eliminando il carattere
         kk--;
       }
