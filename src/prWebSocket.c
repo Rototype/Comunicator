@@ -506,7 +506,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 	//######################################################################
 		case CMD_SetDCMotor:
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-		  if(rc<4) {
+		  if(brr_cnt<4) {
 			trace(__LINE__,__FILE__,404,0,0,"Parametri del comando CMD_SetDCMotor mancanti");
 			break;
 		  }
@@ -534,7 +534,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 		break;
 		case CMD_SetDCMotorPWM:
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-			  if(rc<5) {
+			  if(brr_cnt<5) {
 				trace(__LINE__,__FILE__,404,0,0,"Parametri del comando CMD_SetDCMotorPWM mancanti");
 				break;
 			  }
@@ -563,7 +563,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 	//######################################################################
 		case CMD_SetDCSolenoid:
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-		  if(rc<4) {
+		  if(brr_cnt<4) {
 			trace(__LINE__,__FILE__,404,0,0,"Parametri del comando CMD_SetDCSolenoid mancanti");
 			break;
 		  }
@@ -589,7 +589,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 		break;
 		case CMD_SetDCSolenoidPWM:
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-		  if(rc<6) {
+		  if(brr_cnt<6) {
 			trace(__LINE__,__FILE__,404,0,0,"Parametri del comando CMD_SetDCSolenoidPWM mancanti");
 			break;
 		  }
@@ -639,7 +639,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 	//######################################################################
 		case CMD_SetStepperMotorSpeed:                  // id, mode = brake;0;1;2;8;16 , speed = -n 0 +n , maxacc.= steps/s2 , load = 50 o 100 %
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-		  if(rc<6) {
+		  if(brr_cnt<6) {
 			trace(__LINE__,__FILE__,404,0,0,"Parametri del comando CMD_SetStepperMotorSpeed mancanti");
 			break;
 		  }
@@ -669,7 +669,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 		break;
 		case CMD_SetStepperMotorCountSteps:
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-			  if(rc<7) {
+			  if(brr_cnt<7) {
 				trace(__LINE__,__FILE__,404,0,0,"Parametri del comando CMD_SetStepperMotorCountSteps mancanti");
 				break;
 			  }

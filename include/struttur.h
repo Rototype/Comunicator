@@ -42,7 +42,7 @@ struct connectManage	                // Descrittore della singola connessione co
         long len_msg;					// Variabile per la lunghezza di messaggi molto lunghi (invio file binari o immagini, etc ...)
         unsigned int rx_var[1000];       // area di appoggio per variabili che vengono lette durante una richiesta di valori
         unsigned int tx_var[1000];       // area di appoggio per variabili che vengono lette durante una richiesta di valori
-        unsigned char appo_bus[2000];    // area di appoggio del buffer di trasmissione
+        unsigned char appo_bus[4194304];    // area di appoggio del buffer di trasmissione
         unsigned char chk_bus[2000];     // area di appoggio per calcolo della checksum in ricezione
 
         int coda_socket[20] ;		    // Richieste in coda per il canale
