@@ -239,19 +239,25 @@ printf("Coda WEB SOCKET smaltita %ld\n",TAU_PLC);
 }
 void Interpreta_WebSocket(struct connectManage *Connect)
 {
-int kk,rc, appo;
+int kk, appo;
 char **brr = NULL ;
 static int out_fd ;
 static long lenBlk = 0 ;
 static int typeBlk = 0 ;
 char configStr[1000];
 
+int rc = 0;
+int charPresent = 0;
+int brr_cnt = 0;
+
   Connect->appo_bus[Connect->addr_dev] = 0 ;              				// Metto il fine stringa
   if(typeBlk!=0){
 	  switch(typeBlk){
 		case CMD_InvertImage:
 			lenBlk ++ ;
-			for(kk=0;kk<Connect->addr_dev;kk++) if(Connect->appo_bus[kk]==']') break;
+			for(kk=0;kk<Connect->addr_dev;kk++) 
+        if(Connect->appo_bus[kk]==']') 
+          break;
 			if(kk<=Connect->addr_dev-1){ 								// Trovato il fine file
 // printf("Ultimo bytes <%X>\n",Connect->appo_bus[Connect->addr_dev-1]);		
 				Connect->power_on = 2;
@@ -265,8 +271,9 @@ char configStr[1000];
           if (send_img_ok == 0) {
             sprintf(Connect->appo_bus,"%s@%s[",CMD_tab[CMD_InvertImage],SlaveUnit[0]);
             SendCmd_WebSocket(Connect->client,Connect->appo_bus,3); // Invio risposta al Client WebSocket
-            for(rc=0;kk<Connect->addr_dev;kk++) Connect->appo_bus[rc]=Connect->appo_bus[kk];
-            Connect->addr_dev = rc ;
+            for(rc=0;kk<Connect->addr_dev;kk++) 
+              Connect->appo_bus[rc]=Connect->appo_bus[kk];
+            Connect->addr_dev = rc;
           }
           else {
             printf("Error in SendImage() : %d\n", send_img_ok);
@@ -290,48 +297,59 @@ char configStr[1000];
 #ifdef DEBUG_PRINT
 printf("Letto %d caratteri\n",Connect->addr_dev); // ,Connect->appo_bus);
 #endif
-	  rc = instring(&Connect->appo_bus,'{');                			// Standard Json
-	  if (rc) {                                                         
+    charPresent = 0;
+    rc = 0;
+    brr_cnt = 0;
+
+
+	  charPresent = instring(&Connect->appo_bus,'{');                			// Standard Json
+	  if (charPresent) {                                                         
 #ifdef DEBUG_PRINT                                                      
 printf("JSON msg\n");                                                   
 #endif                                                                  
-		rc = splitstr(Connect->appo_bus , "@#{}", &brr ) ;        		// Separo i vari campi
+		brr_cnt = splitstr(Connect->appo_bus , "@#{}", &brr ) ;        		// Separo i vari campi
 	  }                                                                 
-	  else {                                                            
-		rc = instring(&Connect->appo_bus,'(');              			// Campi ASCII
-		if (rc) {                                                       
+	  else 
+    {                                                            
+		  charPresent = instring(&Connect->appo_bus,'(');              			// Campi ASCII
+		  if (charPresent) {                                                       
 #ifdef DEBUG_PRINT                                                      
-printf("ASCII cmd msg\n");                                              
+        printf("ASCII cmd msg\n");                                              
 #endif                                                                  
-		  rc = splitstr(Connect->appo_bus , "@#(),", &brr ) ;     		// Separo i vari campi
-		}                                                               
-		else {                                                          
-		  rc = instring(&Connect->appo_bus,'[');            			// Campo binario Base64
-		  if (rc) {                                                     
+		    brr_cnt = splitstr(Connect->appo_bus , "@#(),", &brr ) ;     		// Separo i vari campi
+		  }                                                               
+		  else 
+      {                                                          
+  		  charPresent = instring(&Connect->appo_bus,'[');            			// Campo binario Base64
+	  	  if (charPresent) {                                                     
 #ifdef DEBUG_PRINT                                                      
-printf("Base64 Binary Encode msg[%d]\n",rc);                            
+          printf("Base64 Binary Encode msg[%d]\n",rc);                            
 #endif                                                                  
-			rc = splitstr(Connect->appo_bus , "@[]", &brr ) ;    		// Separo i vari campi
-		  }
-		  else {
-			rc = instring(&Connect->appo_bus,'!');          			// Campo binario puro
-			if (rc) {
-			  rc = splitstr(Connect->appo_bus , "@!", &brr ) ; 			// Separo i vari campi
+			    brr_cnt = splitstr(Connect->appo_bus , "@[]", &brr ) ;    		// Separo i vari campi
+		    }
+		    else 
+        {
+			    charPresent = instring(&Connect->appo_bus,'!');          			// Campo binario puro
+			    if (charPresent) {
+			      brr_cnt = splitstr(Connect->appo_bus , "@!", &brr ) ; 			// Separo i vari campi
 #ifdef DEBUG_PRINT
-printf("Binary msg[%d]\n",rc);
+            printf("Binary msg[%d]\n",rc);
 #endif
-			}
-			else {
+			    }
+		      else 
+          {
 #ifdef DEBUG_PRINT
-printf("No parameters msg\n");
+            printf("No parameters msg\n");
 #endif
-			  rc = splitstr(Connect->appo_bus , "@#", &brr ) ;  		// Separo i tre campi tra @ e #
-			}
-		  }
-		}
+			      brr_cnt = splitstr(Connect->appo_bus , "@#", &brr ) ;  		// Separo i tre campi tra @ e #
+			    }
+		    }
+	    }
 	  }
-	  if(rc){ // Se ho letto qualcosa
-	  for (kk=0 ; kk<CMDTOT ; kk++) if(!(strcmp(brr[0],CMD_tab[kk]))) break; // Trovo il comando fra quelli conosciuti
+	  if(brr_cnt){ // Se ho letto qualcosa
+	  for (kk=0 ; kk<CMDTOT ; kk++) 
+      if(!(strcmp(brr[0],CMD_tab[kk]))) 
+        break; // Trovo il comando fra quelli conosciuti
 #ifdef DEBUG_PRINT
 printf("Comando %s \n",CMD_tab[kk]);
 #endif
@@ -725,7 +743,7 @@ printf("\n");
 	//    SendCmd_WebSocket(Connect->client,Connect->appo_bus,0);
 		break;
 	  }
-    for (int i = 0; i != rc; i++)
+    for (int i = 0; i != brr_cnt; i++)
   	  free(brr[i]);
 	  free(brr); // Libero l'area di split del comando
 	  }
@@ -919,22 +937,24 @@ int output,i;               											/* Bytes sent.     */
 long sizeFile;
 FILE * fin;
 
-  if (! opt ){                            								// Devo inviare un ACK alla richiesta
+  if (! opt ) {                            								// Devo inviare un ACK alla richiesta
     msg[0]='A';
     msg[1]='C';
     msg[2]='K';
+    sizeFile = 0;
+  } else if ( opt == 2 ){                          							// Devo inviare un END alla richiesta
+    msg[0]='E';
+    msg[1]='N';
+    msg[2]='D';
+    sizeFile = 0;
+  } else if (opt==3)  {
+    msg[0]='E';
+    msg[1]='N';
+    msg[2]='D';
+    sizeFile = dammiSize(FILE_IMG_TX_BASE64)+1;							// Invio del file invia + ']'
+  } else {
+    sizeFile = 0;
   }
-  else {
-    if ( opt == 2 ){                          							// Devo inviare un END alla richiesta
-      msg[0]='E';
-      msg[1]='N';
-      msg[2]='D';
-    }
-  }
-  /* Text data. */
-  
-  if (opt==3) sizeFile = dammiSize(FILE_IMG_TX_BASE64)+1;							// Invio del file invia + ']'
-  else sizeFile = 0 ;
 //printf("Size file %d\n",sizeFile);  
   length = strlen( (const char *) msg) + sizeFile ;
 
@@ -1000,7 +1020,7 @@ FILE * fin;
 //  output = write(fd,response,idx_response);                   			// Invio richiesta sulla linea
 
   output = sendsock(fd, response, idx_response,0);
-printf("SendSock %d tot car %d %s\n",fd,idx_response,response);
+printf("SendSock %d tot car %d %s\n",fd,idx_response,response + 1);
 
   free(response);
   return (output);
@@ -1914,10 +1934,10 @@ int SendImage()
   // InvertiImage();
 
   char curlcmd[256];
-  sprintf(curlcmd, "curl -o %s --data-binary @%s --local-port %d --interface %s %s:%d -H User-Agent: -H Accept: -H Host: -H Content-Length: -H Content-Type: -H Expect: --max-time %d", FILE_IMG_TX_BINARY, FILE_IMG_RX_BINARY, IMG_LOCAL_PORT, IMG_LOCAL_INTERFACE, IMG_ZYNQ_IP_ADDR, IMG_ZYNQ_PORT, IMG_SENDCMD_TIMEOUT);
-  #ifdef DEBUG_PRINT
+  sprintf(curlcmd, "curl -o %s --http0.9 --data-binary @%s --local-port %d --interface %s %s:%d -H User-Agent: -H Accept: -H Host: -H Content-Length: -H Content-Type: -H Expect: --max-time %d", FILE_IMG_TX_BINARY, FILE_IMG_RX_BINARY, IMG_LOCAL_PORT, IMG_LOCAL_INTERFACE, IMG_ZYNQ_IP_ADDR, IMG_ZYNQ_PORT, IMG_SENDCMD_TIMEOUT);
+  //#ifdef DEBUG_PRINT
     printf("curlcmd: %s\n", curlcmd);
-  #endif
+  //#endif
   int curl_ok = system(curlcmd);
 
   if ( WEXITSTATUS(curl_ok) != 0 && WEXITSTATUS(curl_ok) != 56) {

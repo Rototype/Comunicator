@@ -2452,9 +2452,9 @@ int splitstr(char *str, char *sepa, char ***arr)
     int i = 0;
     char *p;
     char *t;
-  int kk,jj,trov ;
+    int kk,jj,trov;
 
-  kk = strlen(sepa) ;                         							// Quanti separatori devo gestire ?
+    kk = strlen(sepa) ;                         							// Quanti separatori devo gestire ?
     p = str;
     while (*p != '\0')
     {
