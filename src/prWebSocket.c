@@ -514,7 +514,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 		  Connect->tx_var[0] = atoi(brr[2]) ;             // Mi porto dietro i parametri necessari
 		  Connect->tx_var[1] = -2 ;                 // Ipotesi di Parametro errato
 		  Connect->tx_var[2] = 100 ;                  // Forzo il valore del PWM al 100% di default
-      Connect->tx_var[3] = 0 ;    // empty
+      Connect->tx_var[3] = 20 ;    // empty
 		  Connect->tx_var[4] = CMD_SetDCMotor ;           // Mi salvo il comando a cui rispondere
 	/** Possibili parametri come stringa in arrivo
 	 * off,open,0,brake oppure on,1,cw,clockwise,ccw,counterclockwise,-1
