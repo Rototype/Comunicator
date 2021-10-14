@@ -37,6 +37,33 @@ int recv_cfg_len=0;
 int recv_next_pkg=1;
 /************************** FUNCTION DEVELOP SECTION ******************/
 
+
+int GetJsonValue(char *room, int roomsize, const char* key, const char *json) {
+
+	const char* scol = ":";
+	const char *p = strstr(json, key);
+	room[0] = '\0';	// room must be at least one char deep
+	if (p == NULL)
+		return 0;
+	const char* pscol = strstr(p, scol);
+	if (pscol == NULL)
+		return 0;
+	int size = strlen(pscol);
+	int cnt = 0;
+	for (int f = 0; f != size; f++) {
+		if (roomsize < (cnt + 2))
+			break;
+		char c = pscol[f];
+		if (c == ',')	// next field
+			break;
+		if (isalnum(c) || c == '.') {
+			room[cnt++] = c;
+		}
+	}
+	room[cnt] = '\0';
+	return 1;
+
+}
 /**
  *
  * Questa funzione attualmente si limita a fare le printf dei singoli campi
@@ -373,7 +400,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 			//SendEventRequest(Connect,CMD_Restart);          // Invio evento richiesta alla SPI
         sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_Restart],SlaveUnit[1]);
 		    SendCmd_WebSocket(Connect->client,Connect->appo_bus,2);   // Invio risposta al Client WebSocket
-        system("sh resetFPGA.sh &");
+        system("sh /home/root/script/resetFpga.sh &");
 		  }
 		  if(!(strcmp(brr[1],SlaveUnit[2]))){             // Accetto HWController unit
 			trace(__LINE__,__FILE__,404,0,0,"Richiesto Restart HWController");
@@ -381,7 +408,7 @@ printf("Comando %s \n",CMD_tab[kk]);
 			//SendEventRequest(Connect,CMD_Restart);          // Invio evento richiesta alla SPI
         sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_Restart],SlaveUnit[2]);
 		    SendCmd_WebSocket(Connect->client,Connect->appo_bus,2);   // Invio risposta al Client WebSocket
-        system("sh resetZynq.sh &");
+        system("sh /home/root/script/resetSoc.sh &");
 		  }
 		}
 		break;
@@ -454,7 +481,46 @@ printf("Comando %s \n",CMD_tab[kk]);
 	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 		case CMD_UpdateNetworkConfiguration:
 		if(!(strcmp(brr[1],SlaveUnit[0]))){               // Accetto solo Main unit
+
+      // I.E: 
+      // received:
+      // CMD_UpdateNetworkConfiguration@Main{ "IpAddress" : "192.168.1.12", "DefaultGateway" : "192.168.1.1", "DHCP" : "off" }
+
+      // file content:
+      // ipaddr=192.168.1.12
+      // gwaddr=192.168.1.1
+      // dhcp_mode=disable
+
 		  trace(__LINE__,__FILE__,404,0,0,"Richiesto Update Network Configuration");
+
+/*
+      Format of the file used for board eth0 configuration
+
+      ipaddr=169.254.10.10
+      gwaddr=169.254.10.1
+      dhcp_mode=enable
+
+      */
+      char room[64];
+      int ret = 0;
+      FILE* configfile = fopen(FILE_NETWORK_CFG, "w");
+
+      ret = GetJsonValue(room, 64, "IpAddress", brr[2]);
+      fprintf(configfile, "ipaddr=%s\n", room);
+      ret = GetJsonValue(room, 64, "DefaultGateway", brr[2]);
+      fprintf(configfile, "gwaddr=%s\n", room);
+      ret = GetJsonValue(room, 64, "DHCP", brr[2]);
+      fprintf(configfile, "dhcp_mode=");
+      if (strcmp(room, "true")) {
+        fprintf(configfile, "enable\n");
+      } else {
+        fprintf(configfile, "disable\n");
+      }
+      ret = GetJsonValue(room, 64, "SubnetMask", brr[2]);
+      fprintf(configfile, "ipmask=%s\n", room);
+      fclose(configfile);
+
+
 		  if(!parseJson(brr[2])){                   // Interpreto la stringa JSON per gestire i parametri
         FILE* networkfile = fopen(FILE_NETWORK_JSON, "w");
         fwrite("{", sizeof(unsigned char), 1, networkfile);
@@ -462,6 +528,7 @@ printf("Comando %s \n",CMD_tab[kk]);
         fwrite("}", sizeof(unsigned char), 1, networkfile);
         fclose(networkfile);
   			sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateNetworkConfiguration],SlaveUnit[0]);
+
 	  		SendCmd_WebSocket(Connect->client,Connect->appo_bus,2); // Invio risposta al Client WebSocket
 		  }
 		  else{                           // In caso di errore non risponde
