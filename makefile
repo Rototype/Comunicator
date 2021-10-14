@@ -1,11 +1,12 @@
 all:Comunicator
 
-IDIR =../include
+IDIR=include
+ISRC=src
 CC=gcc
 CFLAGS=-I$(IDIR) -g
 
 ODIR=obj
-LDIR =../lib
+LDIR=lib
 
 LIBS=-lpthread -lsqlite3 -lm 
 
@@ -16,7 +17,7 @@ _OBJ = Comunicator.o protocol.o logica.o prSPI.o prSPISlave.o prWebSocket.o simu
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
-$(ODIR)/%.o: %.c $(DEPS)
+$(ODIR)/%.o: $(ISRC)/%.c $(DEPS)
 	mkdir -p $(ODIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
@@ -27,4 +28,5 @@ Comunicator: $(OBJ)
 
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ 
+	rm Comunicator
 

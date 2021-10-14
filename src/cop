@@ -1,2 +1,0 @@
-scp *.c develop@192.168.0.66:/home/develop/plc/src
-scp ../include/*.h develop@192.168.0.66:/home/develop/plc/include
