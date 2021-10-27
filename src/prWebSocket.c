@@ -1035,8 +1035,8 @@ printf("Comando %s \n",CMD_tab[kk]);
 		default:
       if (img_lenblk_limit_on || send_img_ok < 0) 
         break;
-		    trace(__LINE__,__FILE__,498,0,0,"Comando non riconosciuto %d", kk);
-	//    SendCmd_WebSocket(Connect->client,Connect->appo_bus,0);
+		  trace(__LINE__,__FILE__,498,0,0,"Comando non riconosciuto %d", kk);
+	    //    SendCmd_WebSocket(Connect->client,Connect->appo_bus,0);
 		break;
 	  }
     for (int i = 0; i != brr_cnt; i++)
@@ -1044,9 +1044,10 @@ printf("Comando %s \n",CMD_tab[kk]);
 	  free(brr); // Libero l'area di split del comando
 	  }
 	  else {
-      if (img_lenblk_limit_on || send_img_ok < 0) return;
-		trace(__LINE__,__FILE__,498,0,0,"Comando non riconosciuto %s",Connect->appo_bus);
-	//    SendCmd_WebSocket(Connect->client,Connect->appo_bus,0);
+      if (img_lenblk_limit_on || send_img_ok < 0) 
+        return;
+		  trace(__LINE__,__FILE__,498,0,0,"Comando non riconosciuto %s",Connect->appo_bus);
+	      //    SendCmd_WebSocket(Connect->client,Connect->appo_bus,0);
 	  }
   } // Chiudo else typeBLK
 }

@@ -13,7 +13,7 @@
 #define FILE_TX			 "log/invia"									// Nome file di appoggio per la trasmissione su WebSocket
 #define FILE_TX_1		 "log/invia1"									// Nome file di appoggio per la trasmissione su WebSocket
 
-#define FILE_IMG_SERVICE_BIN	"/home/root/update/service.bin"
+#define FILE_IMG_SERVICE_BIN	"/home/root/update/Comunicator"
 #define FILE_IMG_SOC_BIN		"/home/root/update/soc.bin"
 #define FILE_IMG_FPGA_BIN		"/home/root/update/fpga.bin"
 #define FILE_IMG_RX_BASE64	"img/rx_base64"						// Nome file su cui si riceve da WebSocket l'immagine codificata Base64
