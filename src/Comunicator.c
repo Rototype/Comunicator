@@ -2665,6 +2665,8 @@ int kk,jj ;
     else {
 //printf("CaricaFileNelDB : %s\n", NOME_DB);
       fp = fopen(nome_file,"r");
+      if (fp == 0)
+        return 33;
       while(fgets(stringa,160,fp)){
         for (kk = 0 ;stringa[kk]!=0 ;kk++) {
           if(stringa[kk]==' ') {                    // Compattazione dei blank
