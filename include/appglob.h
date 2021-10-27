@@ -3,6 +3,7 @@
 #include "areadati.h"
 
 char CMD_tab[CMDTOT][33]={
+	"None",
 	"CMD_UpdateFirmware",
 	"CMD_UpdateWebSocketFirmware",
 	"CMD_Restart",

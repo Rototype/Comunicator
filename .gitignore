@@ -70,8 +70,12 @@ stamp-*
 /.vscode
 src/DBPARA
 src/Comunicator
+Comunicator
+DBPARA
 DBPARA
 etc/network.json
 temp
 tmp.file
-img/rx_base64
+img/
+img/src/
+

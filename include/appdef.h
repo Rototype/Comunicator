@@ -8,17 +8,20 @@
 #define DIR_IMG			"img/"									// Directory di salvataggio dei file necessari al trasferimento immagine
 /*-----------------* File log dei messaggi di trace per debug sistema *-------------- */
 #define FILE_LOG        "file.log"										// i file di log si chiamano con la data data "yy_mm_dd_file.log"
-#define NETWORK_FILE    "/etc/network/interfaces"						// File per settaggio parametri di rete
 #define FILE_IMPIANTO   "impianto.conf"									// Nome file dichiarazione impianto
 #define FILE_RX_IMMAGINE "log/imma"										// Nome file di appoggio per la ricezione di un immagine
 #define FILE_TX			 "log/invia"									// Nome file di appoggio per la trasmissione su WebSocket
 #define FILE_TX_1		 "log/invia1"									// Nome file di appoggio per la trasmissione su WebSocket
 
+#define FILE_IMG_SERVICE_BIN	"/home/root/update/service.bin"
+#define FILE_IMG_SOC_BIN		"/home/root/update/soc.bin"
+#define FILE_IMG_FPGA_BIN		"/home/root/update/fpga.bin"
 #define FILE_IMG_RX_BASE64	"img/rx_base64"						// Nome file su cui si riceve da WebSocket l'immagine codificata Base64
 #define FILE_IMG_RX_BINARY	"img/rx_binary"						// Nome file su cui si salva l'immagine ricevuta da WebSocket decodificata in binary
 #define FILE_IMG_TX_BINARY	"img/tx_binary"						// Nome file su cui si riceve da Zynq l'immagine eleborata in binary
 #define FILE_IMG_TX_BASE64	"img/tx_base64"						// Nome file su cui si salva l'immagine elaborata in Base64 per rimandarla al WebSocket
 
+#define FILE_NETWORK_CFG	"/home/root/config/eth0.param"
 #define FILE_NETWORK_JSON	"etc/network.json"				// Path del file dove salvare la network config ricevuta in formato json
 #define FILE_CONFIG_JSON	"etc/config.json"				// Path del file da utlizzare per salvare la config inviata alla MainUnit in formato json
 #define HWC_CONFIG_MAX_BLOCK_SIZE	57
@@ -39,12 +42,17 @@
 #define IMG_ZYNQ_IP_ADDR		"192.168.121.232"		// Indirizzo ip per inviare l'immagine alla zynq
 #define IMG_ZYNQ_PORT			5001					// Porta su cui inviare l'immagine alla zynq
 #define IMG_SENDCMD_TIMEOUT		5						// Timeout del comando di send (in secondi)
-#define IMG_LENBLK_LIMIT		4610					// Limite di pacchetti websocket per la ricezione immagine ( ~6.5 MB)
+#define IMG_LENBLK_LIMIT		(8000000/57)			// Limite di pacchetti websocket per la ricezione immagine ( ~8 MB)
 
 /************************** DEFINE NOMI FILE E DIRECTORY UTILIZZATE DALL'APPLICATIVO ******************************/
 #define PARTOT 9
 #define ROOTOBJ 5														// Elenco parametri utilizzati all'interno delle stringhe JSON
+
+
+// keep sync these look-up table: cmdWbSock + char CMD_tab[CMDTOT]
+
 enum cmdWbSock {
+	None,
 	CMD_UpdateFirmware,
 	CMD_UpdateWebSocketFirmware,
 	CMD_Restart,

@@ -90,7 +90,6 @@ char *long2strip(unsigned long);
 unsigned long StrHex2Value(char * );
 int rw_parametro(char *,char *,int );
 void rw_par_lavoro(int );
-void aggiorna(char * , char * , char *);
 int EsisteFile(int ) ;
 double rw_valpar(char *,char *,int ) ;
 char * memory(int ,int );
@@ -99,49 +98,11 @@ void *SerialLine (void* );
 void rw_strpar(char *,char *,char *,int );
 int crea_tabella ( int  );
 int numGiorno(char *); 
-void dammi_mac(char *);
-void aggiorna_hosts(char * ,int );
-void aggiorna_hostname(char * );
 void trim(char * );
 long dammiSec(char *) ;
 /************************** PROTOTYPE REFERENCES FUNCTION DECLARATIONS SECTION *****************/
 extern int (* dammi_protocollo(int ))();
 extern void SendPollCmd(int ,int ,int );
 extern void InitChannel(int );
-/*----------------------------------------------*/
-char gpio_sgn[32][7]={
-"GPIO17", // 0
-"GPIO18", // 1
-"GPIO27", // 2 vecchio 21
-"GPIO22", // 3
-"GPIO23", // 4
-"GPIO24", // 5
-"GPIO25", // 6
-"GPIO4" , // 7      RTC
-"GPIO2" , // 8 vecchio 0     RTC
-"GPIO3" , // 9 vecchio 1     RTC
-"GPIO8" , // 10
-"GPIO7" , // 11
-"GPIO10", // 12
-"GPIO9" , // 13
-"GPIO11", // 14
-"GPIO14", // 15     TXd
-"GPIO15", // 16     RXd
-"FREE",   // 17
-"FREE",   // 18
-"FREE",   // 19
-"FREE",   // 20
-"GPIO5",  // 21
-"GPIO6",  // 22
-"GPIO13", // 23
-"GPIO19", // 24
-"GPIO26", // 25
-"GPIO12", // 26
-"GPIO16", // 27
-"GPIO20", // 28
-"GPIO21", // 29
-"I2C_SD", // 30
-"I2C_SC", // 31
-};
 // Include dipendenti dall'applicazione ###############################
 #include "appglob.h"                        

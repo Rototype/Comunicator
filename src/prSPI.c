@@ -94,7 +94,7 @@ int simula;
 
     if (protocollo != ISO2110) {
       printf("line %d, protocollo %s : ignoro scrittura su un canale di sola lettura\n",cliente,protocol_name[protocollo]);
-      return;
+      return NULL;
     }
 
   Connect = (struct connectManage *) malloc(sizeof (struct connectManage)); // Mi alloco la memoria

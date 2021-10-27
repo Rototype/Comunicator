@@ -3,38 +3,125 @@
 #include "sha1.h"
 #include "base64.h"
 #include "json.h"
+#include <stdio.h>
+#include <ctype.h>
 
 // #define DEBUG_PRINT 1  													// Attivo le stampe di debug
 //#define DEBUG_INVERSIONE_FILE	 1 										// Sviluppo l'inversione di un file .BMP prima di inviarlo. Se commentato invia il FILE_TX cosi come lo legge
 
+int traduci(char *line,int type);
 int Init_WebSocket(int ) ;
 int InitAree_WebSocket(int ) ;
 int WebSocket(struct connectManage * ,unsigned char *,int,int) ;
 int Connect_WebSocket(struct connectManage *) ;
 void SendPoll_WebSocket(int,int,int);
 int SendCmd_WebSocket(int,char *,int);
-
+int PlaceFile(const char*infile, const char *outfile);
+int SendImage();
 // Funzioni che servono internamente per la gestione del protocollo
 int getHSresponse(char *, char **);
 int getHSaccept(char *, unsigned char **);
+void CleanupImgFiles();
 
 // Interpretazione dei comandi in arrivo da sviluppare in base alle specifiche di protocollo
 void Interpreta_WebSocket(struct connectManage *) ;
 
 // Puntatore alla struttura di gestione del canale di comunicazione
 struct protoManage *ProtoConnectWb ;
-extern int splitstr(char *str, char *sepa, char ***arr);
 extern struct SendArea AreaSpi ;                    // Variabile globale per inviare l'evento al driver SPI
-
+extern long int dammiSize(const char *file_name);
+extern int instring(char *str, char c);
 extern int img_lenblk_limit_on;
-int send_img_ok = 0;
 extern int receivedACK;
 extern int pkt_tx_ending;
 extern int pkt_rx_ending;
+extern int sendsock(int accept_socket,char *myDmsg,int lenDmsg,int opt);
+
+int send_img_ok = 0;
 int recv_idx=0;
 char recv_cfg[1000];
 int recv_cfg_len=0;
 int recv_next_pkg=1;
+enum fwtypes { none, fpga, soc, service};
+enum fwtypes fwtype = none;
+
+/***********************************************************************
+ * stringa da separare
+ * stringa di separatori
+ * array di stringhe con i singoli valori separati
+ * Una volta          che la funzione rientra dopo aver adoperato l'array di stringhe
+ * si deve liberare la memoria con una free(arr) ; Se bah... Piacerebbe.
+ * */
+int splitstr(char *str, char *sepa, char ***arr, int *pspare)
+{
+    int count = 1;
+    int token_len = 1;
+    int i = 0;
+    char *p;
+    char *t;
+    int kk,jj,trov;
+
+    kk = strlen(sepa) ;                         							// Quanti separatori devo gestire ?
+    p = str;
+    while (*p != '\0')
+    {
+    for(jj=0;jj<kk;jj++) if (*p == sepa[jj] ) count++;
+        p++;
+    }
+
+    *arr = (char**) malloc(sizeof(char*) * count);            			// Mi alloco il numero di puntatori che mi serviranno
+    if (*arr == NULL) return(0);
+
+    p = str;
+    while (*p != '\0')
+    {
+    for(trov=jj=0;jj<kk;jj++) if(*p == sepa[jj]){trov=1;break;}
+        if ( trov )
+        {
+          (*arr)[i] = (char*) malloc( sizeof(char) * token_len );   	// Mi alloco lo spazio per i singoli array
+          if ((*arr)[i] == NULL) return(0);
+      token_len = 0;
+          i++;
+        }
+        p++;
+        token_len++;
+    }
+
+  *pspare = 0;
+  if(token_len>1) {
+    *pspare = token_len;
+    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );     		// Mi alloco lo spazio per l'ultima stringa se non c'e' un separatore come ultimo carattere
+    if ((*arr)[i] == NULL) return(0);
+  }
+  else count--;                           								// Altrimenti ho un array in meno
+
+    i = 0;
+    p = str;
+    t = ((*arr)[i]);
+    while (*p != '\0')
+    {
+    for(trov=jj=0;jj<kk;jj++) if(*p == sepa[jj]){trov=1;break;}
+
+        if (!(trov) && (*p != '\0'))
+        {
+            *t = *p;
+            t++;
+            *t = '\0';                          						// ipotesi che ci sara' un fine stringa
+        }
+        else
+        {
+      if(*(p+1)!='\0'){                     							// Se non sono sul fine stringa apro un altro array
+        *t = '\0';
+        i++;
+        t = ((*arr)[i]);
+      }
+        }
+        p++;
+    }
+    return count;
+}
+
+
 /************************** FUNCTION DEVELOP SECTION ******************/
 
 
@@ -271,6 +358,7 @@ char **brr = NULL ;
 static int out_fd ;
 static long lenBlk = 0 ;
 static int typeBlk = 0 ;
+int spare = 0;
 char configStr[1000];
 
 int rc = 0;
@@ -278,43 +366,90 @@ int charPresent = 0;
 int brr_cnt = 0;
 
   Connect->appo_bus[Connect->addr_dev] = 0 ;              				// Metto il fine stringa
+
+  int n = 0;
+/*
+  printf("WS rxd:\"");
+  while (n < Connect->addr_dev && n < 64) {
+    printf("%c", Connect->appo_bus[n++]);
+  }
+  if (n < Connect->addr_dev) {
+    printf("\" and %d more...\n", Connect->addr_dev - n);
+  } else {
+    printf("\n");
+  }
+*/
   if(typeBlk!=0){
+    int wasTypeBlk = typeBlk;
 	  switch(typeBlk){
 		case CMD_InvertImage:
+    case CMD_UpdateFirmware:
+    case CMD_UpdateWebSocketFirmware:
 			lenBlk ++ ;
 			for(kk=0;kk<Connect->addr_dev;kk++) 
-        if(Connect->appo_bus[kk]==']') 
+        if(Connect->appo_bus[kk]==']') {
+          printf("End decoding\n");
           break;
+        }
 			if(kk<=Connect->addr_dev-1){ 								// Trovato il fine file
-// printf("Ultimo bytes <%X>\n",Connect->appo_bus[Connect->addr_dev-1]);		
+        // printf("Ultimo bytes <%X>\n",Connect->appo_bus[Connect->addr_dev-1]);		
 				Connect->power_on = 2;
 				typeBlk =  0; 											// Fine di accumulo nel buffer
-     			write(out_fd, Connect->appo_bus, kk) ;					// Copio tutto sul file meno la parentesi
+     		write(out_fd, Connect->appo_bus, kk) ;					// Copio tutto sul file meno la parentesi
 				close(out_fd);
-// printf("Chiudo il file \n");
+        // printf("Chiudo il file \n");
         if (lenBlk < IMG_LENBLK_LIMIT) {
-          // printf("lenBlk = %ld\n", lenBlk);
-          send_img_ok = SendImage();
-          if (send_img_ok == 0) {
-            sprintf(Connect->appo_bus,"%s@%s[",CMD_tab[CMD_InvertImage],SlaveUnit[0]);
-            SendCmd_WebSocket(Connect->client,Connect->appo_bus,3); // Invio risposta al Client WebSocket
-            for(rc=0;kk<Connect->addr_dev;kk++) 
-              Connect->appo_bus[rc]=Connect->appo_bus[kk];
-            Connect->addr_dev = rc;
+          printf("lenBlk = %ld\n", lenBlk);
+          if( wasTypeBlk == CMD_InvertImage) {
+            send_img_ok = SendImage();
+            if (send_img_ok == 0) {
+              sprintf(Connect->appo_bus,"%s@%s[",CMD_tab[CMD_InvertImage],SlaveUnit[0]);
+              SendCmd_WebSocket(Connect->client,Connect->appo_bus,3); // Invio risposta al Client WebSocket
+              for(rc=0;kk<Connect->addr_dev;kk++) 
+                Connect->appo_bus[rc]=Connect->appo_bus[kk];
+              Connect->addr_dev = rc;
+            } else {
+              printf("Error in SendImage() : %d\n", send_img_ok);
+            }
+            CleanupImgFiles();
+          } else {
+            switch(fwtype) {
+              case fpga:
+                send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_FPGA_BIN);
+                sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateFirmware],SlaveUnit[1]);
+                break;
+              case soc:
+                send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_SOC_BIN);
+                sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateFirmware],SlaveUnit[2]);
+                break;
+              case service:
+                send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_SERVICE_BIN);
+                sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateWebSocketFirmware],SlaveUnit[0]);
+                break;
+              default:
+                send_img_ok = 0;
+                break;
+            }
+            
+            if (send_img_ok == 0) {
+              SendCmd_WebSocket(Connect->client,Connect->appo_bus,2); // Invio risposta al Client WebSocket
+              for(rc=0;kk<Connect->addr_dev;kk++) 
+                Connect->appo_bus[rc]=Connect->appo_bus[kk];
+              Connect->addr_dev = rc;
+            } else {
+              printf("Error in PlaceFile() : %d\n", send_img_ok);
+            }
+            CleanupImgFiles();
+
           }
-          else {
-            printf("Error in SendImage() : %d\n", send_img_ok);
-          }
-          CleanupImgFiles();
-        }
-        else {
+        } else {
           printf("IMG_LENBLK_LIMIT reached\n");
           img_lenblk_limit_on = 1;
         }
 			}
 			else {
-     			write(out_fd, Connect->appo_bus, Connect->addr_dev) ;	// Copio tutto sul file
-// printf("Accumulo[%d] nel file %d bytes\n",lenBlk,Connect->addr_dev);		
+        write(out_fd, Connect->appo_bus, Connect->addr_dev) ;	// Copio tutto sul file
+        // printf("Accumulo[%d] nel file %d bytes\n",lenBlk,Connect->addr_dev);		
 				Connect->addr_dev = 0 ;									// Ho gia' interpretato tutto il buffer ricevuto
 			}
 		break;
@@ -334,7 +469,7 @@ printf("Letto %d caratteri\n",Connect->addr_dev); // ,Connect->appo_bus);
 #ifdef DEBUG_PRINT                                                      
 printf("JSON msg\n");                                                   
 #endif                                                                  
-		brr_cnt = splitstr(Connect->appo_bus , "@#{}", &brr ) ;        		// Separo i vari campi
+		brr_cnt = splitstr(Connect->appo_bus , "@#{}", &brr, &spare) ;        		// Separo i vari campi
 	  }                                                                 
 	  else 
     {                                                            
@@ -343,7 +478,7 @@ printf("JSON msg\n");
 #ifdef DEBUG_PRINT                                                      
         printf("ASCII cmd msg\n");                                              
 #endif                                                                  
-		    brr_cnt = splitstr(Connect->appo_bus , "@#(),", &brr ) ;     		// Separo i vari campi
+		    brr_cnt = splitstr(Connect->appo_bus , "@#(),", &brr, &spare) ;     		// Separo i vari campi
 		  }                                                               
 		  else 
       {                                                          
@@ -352,13 +487,13 @@ printf("JSON msg\n");
 #ifdef DEBUG_PRINT                                                      
           printf("Base64 Binary Encode msg[%d]\n",rc);                            
 #endif                                                                  
-			    brr_cnt = splitstr(Connect->appo_bus , "@[]", &brr ) ;    		// Separo i vari campi
+			    brr_cnt = splitstr(Connect->appo_bus , "@[]", &brr, &spare) ;    		// Separo i vari campi
 		    }
 		    else 
         {
 			    charPresent = instring(&Connect->appo_bus,'!');          			// Campo binario puro
 			    if (charPresent) {
-			      brr_cnt = splitstr(Connect->appo_bus , "@!", &brr ) ; 			// Separo i vari campi
+			      brr_cnt = splitstr(Connect->appo_bus , "@!", &brr, &spare) ; 			// Separo i vari campi
 #ifdef DEBUG_PRINT
             printf("Binary msg[%d]\n",rc);
 #endif
@@ -368,7 +503,7 @@ printf("JSON msg\n");
 #ifdef DEBUG_PRINT
             printf("No parameters msg\n");
 #endif
-			      brr_cnt = splitstr(Connect->appo_bus , "@#", &brr ) ;  		// Separo i tre campi tra @ e #
+			      brr_cnt = splitstr(Connect->appo_bus , "@#", &brr, &spare) ;  		// Separo i tre campi tra @ e #
 			    }
 		    }
 	    }
@@ -381,10 +516,6 @@ printf("JSON msg\n");
 printf("Comando %s \n",CMD_tab[kk]);
 #endif
 	  switch(kk){                             // Sviluppo il comando trovato fra quelli riconosciuti
-		case CMD_UpdateFirmware:
-		break;
-		case CMD_UpdateWebSocketFirmware:
-		break;
 	//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 		case CMD_Restart:
 		if(!(strcmp(brr[1],SlaveUnit[0]))){               // Accetto Main unit
@@ -462,8 +593,8 @@ printf("Comando %s \n",CMD_tab[kk]);
 		}
 		else {
 		  if(!(strcmp(brr[1],SlaveUnit[2]))){             // Accetto HWController unit
-			trace(__LINE__,__FILE__,404,0,0,"Richiesto Read Configuration HWController");
-			// if(!parseJson(brr[2])){                 // Interpreto la stringa JSON per gestire i parametri, ritorna 1 per errore di interpretazione
+			  trace(__LINE__,__FILE__,404,0,0,"Richiesto Read Configuration HWController");
+			  // if(!parseJson(brr[2])){                 // Interpreto la stringa JSON per gestire i parametri, ritorna 1 per errore di interpretazione
 			  // sprintf(Connect->appo_bus,"%s@%s{TODO}",CMD_tab[CMD_ReadConfiguration],SlaveUnit[2]);
 			  // SendCmd_WebSocket(Connect->client,Connect->appo_bus,2); // Invio risposta al Client WebSocket
         // sprintf(Connect->appo_bus,"{%s}",brr[2]);
@@ -551,9 +682,9 @@ printf("Comando %s \n",CMD_tab[kk]);
 		break;
 		case CMD_ReadAnalogInput:
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-			trace(__LINE__,__FILE__,404,0,0,"Richiesto Read Analog Input %s",brr[2]); // Indice dell'ingresso da leggere
-			Connect->tx_var[0] = atoi(brr[2]) ;             // Mi porto dietro l'indice dell'Input da leggere da 1 a 5 valori accettati se diverso ritorna il valore di in 1
-			SendEventRequest(Connect,CMD_ReadAnalogInput);        // Invio evento richiesta alla SPI
+        trace(__LINE__,__FILE__,404,0,0,"Richiesto Read Analog Input %s",brr[2]); // Indice dell'ingresso da leggere
+        Connect->tx_var[0] = atoi(brr[2]) ;             // Mi porto dietro l'indice dell'Input da leggere da 1 a 5 valori accettati se diverso ritorna il valore di in 1
+        SendEventRequest(Connect,CMD_ReadAnalogInput);        // Invio evento richiesta alla SPI
 		  }
 		  else {
 			trace(__LINE__,__FILE__,404,0,0,"SlaveUnit del comando Read Analog Input non riconosciuta");
@@ -561,13 +692,13 @@ printf("Comando %s \n",CMD_tab[kk]);
 		break;
 		case CMD_SetAnalogOutput:
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-			trace(__LINE__,__FILE__,404,0,0,"Richiesto Write Analog Output %s=%s",brr[2],brr[3]); // Indice dell'uscita da scrivere e valore
-			Connect->tx_var[0] = atoi(brr[2]) ;             // Mi porto dietro i parametri necessari
-			Connect->tx_var[1] = atoi(brr[3]) ;             // Mi porto dietro i parametri necessari
-			SendEventRequest(Connect,CMD_SetAnalogOutput);        // Invio evento richiesta alla SPI
+        trace(__LINE__,__FILE__,404,0,0,"Richiesto Write Analog Output %s=%s",brr[2],brr[3]); // Indice dell'uscita da scrivere e valore
+        Connect->tx_var[0] = atoi(brr[2]) ;             // Mi porto dietro i parametri necessari
+        Connect->tx_var[1] = atoi(brr[3]) ;             // Mi porto dietro i parametri necessari
+        SendEventRequest(Connect,CMD_SetAnalogOutput);        // Invio evento richiesta alla SPI
 		  }
 		  else {
-		  trace(__LINE__,__FILE__,404,0,0,"SlaveUnit del comando Write Analog Output non riconosciuta");
+		    trace(__LINE__,__FILE__,404,0,0,"SlaveUnit del comando Write Analog Output non riconosciuta");
 		  }
 		break;
 	//######################################################################
@@ -586,7 +717,8 @@ printf("Comando %s \n",CMD_tab[kk]);
 	/** Possibili parametri come stringa in arrivo
 	 * off,open,0,brake oppure on,1,cw,clockwise,ccw,counterclockwise,-1
 	 **/
-		  if (brr[3][0]=='-' || brr[3][0]=='0' || brr[3][0]=='1' ) Connect->tx_var[1] = atoi(brr[3]) ;
+		  if (brr[3][0]=='-' || brr[3][0]=='0' || brr[3][0]=='1' ) 
+        Connect->tx_var[1] = atoi(brr[3]) ;
 		  else {
 			rc = traduci(brr[3],1);                 // Trasformo la stringa in un valore
 			if(rc != PAR_val[PARTOT-1]) Connect->tx_var[1] = rc ;   // Se stringa trovata
@@ -646,19 +778,19 @@ printf("Comando %s \n",CMD_tab[kk]);
 		  if (brr[3][0]=='0' || brr[3][0]=='1' ) Connect->tx_var[1] = brr[3][0]-0x30 ;
 		  else {
 			rc = traduci(brr[3],1);                 // Trasformo la stringa in un valore
-			if(rc != PAR_val[PARTOT-1]) Connect->tx_var[1] = rc ;   // Se stringa trovata
-		  }
-		  if(Connect->tx_var[1]>= 0 && Connect->tx_var[1]<=1)       // Se valore compreso fra 0 1
-			SendEventRequest(Connect,CMD_SetDCSolenoid);      // Invio evento richiesta alla SPI
-		  else trace(__LINE__,__FILE__,404,0,0,"Parametro del comando CMD_SetDCSolenoid non riconosciuto <%s>",brr[3]);
-		  }
+        if(rc != PAR_val[PARTOT-1]) Connect->tx_var[1] = rc ;   // Se stringa trovata
+        }
+        if(Connect->tx_var[1]>= 0 && Connect->tx_var[1]<=1)       // Se valore compreso fra 0 1
+          SendEventRequest(Connect,CMD_SetDCSolenoid);      // Invio evento richiesta alla SPI
+          else trace(__LINE__,__FILE__,404,0,0,"Parametro del comando CMD_SetDCSolenoid non riconosciuto <%s>",brr[3]);
+        }
 		  else trace(__LINE__,__FILE__,404,0,0,"SlaveUnit del comando CMD_SetDCSolenoid non riconosciuta");
 		break;
 		case CMD_SetDCSolenoidPWM:
 		  if(!(strcmp(brr[1],SlaveUnit[0]))){             // Accetto solo Main unit
-		  if(brr_cnt<6) {
-			trace(__LINE__,__FILE__,404,0,0,"Parametri del comando CMD_SetDCSolenoidPWM mancanti");
-			break;
+        if(brr_cnt<6) {
+        trace(__LINE__,__FILE__,404,0,0,"Parametri del comando CMD_SetDCSolenoidPWM mancanti");
+        break;
 		  }
 		  trace(__LINE__,__FILE__,404,0,0,"Richiesto Set DC SolenoidPWM %s=%s",brr[2],brr[3]); // Indice dell'uscita da scrivere e valore
 		  Connect->tx_var[0] = atoi(brr[2]) ;             // Mi porto dietro i parametri necessari
@@ -769,44 +901,141 @@ printf("Comando %s \n",CMD_tab[kk]);
 
 		break;
 	//######################################################################
+		case CMD_UpdateFirmware:
+		  if(!(strcmp(brr[1],SlaveUnit[0]))) {
+        // main
+        trace(__LINE__,__FILE__,404,0,0,"CMD_UpdateFirmware SlaveUnit:Main");
+      } else if(!(strcmp(brr[1],SlaveUnit[1]))) {
+        // FPGA
+        trace(__LINE__,__FILE__,404,0,0,"CMD_UpdateFirmware SlaveUnit:FPGA");
+        fwtype = fpga;
+        Connect->power_on = 3 ;
+        lenBlk = 1 ;
+        typeBlk = CMD_UpdateFirmware ;									// Mi ricordo che sto bufferizzando un'immagine
+        rc = Connect->addr_dev - strlen(CMD_tab[CMD_UpdateFirmware]) - strlen(SlaveUnit[1]) - 2 ;  // Tolgo il comando di riconoscimento 
+        out_fd = open(FILE_IMG_RX_BASE64, O_WRONLY | O_CREAT | O_TRUNC);  // Apro in sovrascrittura
+        if ( out_fd <= 0) 
+          break;
+        if(spare == 0) {
+          printf("End decoding\n");
+          typeBlk = 0 ;												// Gia' finito bufferizzazione immagine
+          write(out_fd, brr[2], rc-1) ;								// Copio tutto sul file
+          close(out_fd);
+          send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_FPGA_BIN);
+          if (send_img_ok == 0) {
+            sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateFirmware],SlaveUnit[1]);
+            SendCmd_WebSocket(Connect->client,Connect->appo_bus,2);   // Invio risposta al Client WebSocket
+          } else {
+             printf("Error in PlaceFile() : %d\n", send_img_ok);
+          }
+          CleanupImgFiles();
+        } else {
+          write(out_fd, brr[2], rc) ;								// Copio tutto sul file
+        }  
+      } else if(!(strcmp(brr[1],SlaveUnit[2]))) {
+        // HW Controller
+        trace(__LINE__,__FILE__,404,0,0,"CMD_UpdateFirmware SlaveUnit:HWController");
+        fwtype = soc;
+        Connect->power_on = 3 ;
+        lenBlk = 1 ;
+        typeBlk = CMD_UpdateFirmware ;									// Mi ricordo che sto bufferizzando un'immagine
+        rc = Connect->addr_dev - strlen(CMD_tab[CMD_UpdateFirmware]) - strlen(SlaveUnit[2]) - 2 ;  // Tolgo il comando di riconoscimento 
+        out_fd = open(FILE_IMG_RX_BASE64, O_WRONLY | O_CREAT | O_TRUNC);  // Apro in sovrascrittura
+        if ( out_fd <= 0) 
+          break;
+        if(spare == 0) {
+          printf("End decoding\n");
+          typeBlk = 0 ;												// Gia' finito bufferizzazione immagine
+          write(out_fd, brr[2], rc-1) ;								// Copio tutto sul file
+          close(out_fd);
+          send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_SOC_BIN);
+          if (send_img_ok == 0) {
+            sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateFirmware],SlaveUnit[2]);
+            SendCmd_WebSocket(Connect->client,Connect->appo_bus,2);   // Invio risposta al Client WebSocket
+          } else {
+             printf("Error in PlaceFile() : %d\n", send_img_ok);
+          }
+          CleanupImgFiles();
+        } else {
+          write(out_fd, brr[2], rc) ;								// Copio tutto sul file
+        }  
+      } else {
+        trace(__LINE__,__FILE__,404,0,0,"SlaveUnit del comando CMD_UpdateFirmware non riconosciuta");
+      }
+
+
+		break;
+		case CMD_UpdateWebSocketFirmware:
+      if(!(strcmp(brr[1],SlaveUnit[0]))) {
+        // main
+         trace(__LINE__,__FILE__,404,0,0,"CMD_UpdateWebSocketFirmware SlaveUnit:Main");
+        fwtype = service;
+        Connect->power_on = 3 ;
+        lenBlk = 1 ;
+        typeBlk = CMD_UpdateFirmware ;									// Mi ricordo che sto bufferizzando un'immagine
+        rc = Connect->addr_dev - strlen(CMD_tab[CMD_UpdateFirmware]) - strlen(SlaveUnit[0]) - 2 ;  // Tolgo il comando di riconoscimento 
+        out_fd = open(FILE_IMG_RX_BASE64, O_WRONLY | O_CREAT | O_TRUNC);  // Apro in sovrascrittura
+        if ( out_fd <= 0) 
+          break;
+        if(spare == 0) {
+          printf("End decoding\n");
+          typeBlk = 0 ;												// Gia' finito bufferizzazione immagine
+          write(out_fd, brr[2], rc-1) ;								// Copio tutto sul file
+          close(out_fd);
+          send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_SERVICE_BIN);
+          if (send_img_ok == 0) {
+            sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateFirmware],SlaveUnit[0]);
+            SendCmd_WebSocket(Connect->client,Connect->appo_bus,2);   // Invio risposta al Client WebSocket
+          } else {
+             printf("Error in PlaceFile() : %d\n", send_img_ok);
+          }
+          CleanupImgFiles();
+        } else {
+          write(out_fd, brr[2], rc) ;								// Copio tutto sul file
+        }        
+      } else {
+        trace(__LINE__,__FILE__,404,0,0,"SlaveUnit del comando CMD_UpdateWebSocketFirmware non riconosciuta");
+      }
+		break;
+
+
+
 		case CMD_InvertImage:
-		  if(!(strcmp(brr[1],SlaveUnit[0]))){             				// Accetto solo Main unit
-			Connect->power_on = 3 ;
-   		    lenBlk = 1 ;
-			typeBlk = CMD_InvertImage ;									// Mi ricordo che sto bufferizzando un immagine
-			rc = Connect->addr_dev - strlen(CMD_tab[CMD_InvertImage]) - strlen(SlaveUnit[0]) - 2 ;  // Tolgo il comando di riconoscimento 
-/*	* /		
-for(out_fd=0;out_fd<Connect->addr_dev;out_fd++) printf("%X.",brr[2][out_fd]);			
-printf("\n");
-/* */
-//printf("Arrivati %d caratteri File \n",rc);			
-  	     // brr[2] punta sul primo dato binario : Nel caso di .bmp file i primi due bytes sono BM
-			out_fd = open(FILE_IMG_RX_BASE64, O_WRONLY | O_CREAT | O_TRUNC);  // Apro in sovrascrittura
-			if ( out_fd <= 0) break;
-//printf("ultimo car <%c> <%X>\n",	brr[2][rc-1] ,brr[2][rc-1] );
-			if(brr[2][rc-1]==']') {
-			  typeBlk = 0 ;												// Gia' finito bufferizzazione immagine
-			  write(out_fd, brr[2], rc-1) ;								// Copio tutto sul file
-			  close(out_fd);
-			  send_img_ok = SendImage();
-        if (send_img_ok == 0) {
-          sprintf(Connect->appo_bus,"%s@%s[",CMD_tab[CMD_InvertImage],CMD_tab[CMD_InvertImage]);
-  			  SendCmd_WebSocket(Connect->client,Connect->appo_bus,3);   // Invio risposta al Client WebSocket
-        }
-        else {
-          printf("Error in SendImage() : %d\n", send_img_ok);
-        }
-        CleanupImgFiles();
-			}
-			else {
-			  write(out_fd, brr[2], rc) ;								// Copio tutto sul file
-			}  
-		  }
-		  else trace(__LINE__,__FILE__,404,0,0,"SlaveUnit del comando CMD_InvertImage non riconosciuta");
+		  if(!(strcmp(brr[1],SlaveUnit[0]))) {             				// Accetto solo Main unit
+        // Image
+        trace(__LINE__,__FILE__,404,0,0,"CMD_InvertImage SlaveUnit:Main");
+        fwtype = none;
+        Connect->power_on = 3 ;
+        lenBlk = 1 ;
+        typeBlk = CMD_InvertImage ;									// Mi ricordo che sto bufferizzando un immagine
+        rc = Connect->addr_dev - strlen(CMD_tab[CMD_InvertImage]) - strlen(SlaveUnit[0]) - 2 ;  // Tolgo il comando di riconoscimento 
+        out_fd = open(FILE_IMG_RX_BASE64, O_WRONLY | O_CREAT | O_TRUNC);  // Apro in sovrascrittura
+        if ( out_fd <= 0) 
+          break;
+        if(spare == 0) {
+          printf("End decoding\n");
+          typeBlk = 0 ;												// Gia' finito bufferizzazione immagine
+          write(out_fd, brr[2], rc-1) ;								// Copio tutto sul file
+          close(out_fd);
+          send_img_ok = SendImage();
+          if (send_img_ok == 0) {
+            sprintf(Connect->appo_bus,"%s@%s[",CMD_tab[CMD_InvertImage],SlaveUnit[0]);
+            SendCmd_WebSocket(Connect->client,Connect->appo_bus,3);   // Invio risposta al Client WebSocket
+          } else {
+            printf("Error in SendImage() : %d\n", send_img_ok);
+          }
+          CleanupImgFiles();
+        } else {
+          write(out_fd, brr[2], rc) ;								// Copio tutto sul file
+        }  
+		  } else {
+        trace(__LINE__,__FILE__,404,0,0,"SlaveUnit del comando CMD_InvertImage non riconosciuta");
+      }
 		break;
 		default:
-      if (img_lenblk_limit_on || send_img_ok < 0) break;
-		trace(__LINE__,__FILE__,498,0,0,"Comando non riconosciuto %s",Connect->appo_bus);
+      if (img_lenblk_limit_on || send_img_ok < 0) 
+        break;
+		    trace(__LINE__,__FILE__,498,0,0,"Comando non riconosciuto %d", kk);
 	//    SendCmd_WebSocket(Connect->client,Connect->appo_bus,0);
 		break;
 	  }
@@ -953,33 +1182,34 @@ int Connect_WebSocket(struct connectManage *Connect)
 #ifdef DEBUG_PRINT
 printf("Inizializzo l'area della connessione %d address %X\n",Connect->canale,Connect);
 #endif
-   Connect->timeout      =  0  ;
-   Connect->flg_bus      =  0  ;
-   Connect->flg_car      = -1  ;
-   Connect->wait_bus     =  0  ;
-   Connect->addr_dev     =  0  ;
-   Connect->timeout_cnt  =  0  ;
-   Connect->last_id_send = -1  ;
-   Connect->poll_param   =  0  ;
-   Connect->poll_device  =  0  ;
-   Connect->power_on     =  0  ;  // Ricordati di fare l'inizializzazione del colloquio all'arrivo dei primi caratteri: HANDSHAKE INIZIALE
+  Connect->timeout      =  0  ;
+  Connect->flg_bus      =  0  ;
+  Connect->flg_car      = -1  ;
+  Connect->wait_bus     =  0  ;
+  Connect->addr_dev     =  0  ;
+  Connect->timeout_cnt  =  0  ;
+  Connect->last_id_send = -1  ;
+  Connect->poll_param   =  0  ;
+  Connect->poll_device  =  0  ;
+  Connect->power_on     =  0  ;  // Ricordati di fare l'inizializzazione del colloquio all'arrivo dei primi caratteri: HANDSHAKE INIZIALE
 
-   if (Connect->polcan == -1 ){   // Ha la gestione degli eventi questa connessione ?
-     if ( pthread_create(&Connect->child, NULL, SendEvent, NULL) != 0 )  // Installo la funzione che gestisce gli eventi
-       printf("Pthread creazione SendEvent errore: %d - %s \n",errno,strerror(errno));
-     else {
-       pthread_detach(Connect->child);
-       printf("Connect WebSocket : thread che deve catturare gli eventi tid %ld\n",Connect->child);
-     }
-   }
+  if (Connect->polcan == -1 ){   // Ha la gestione degli eventi questa connessione ?
+    CleanupImgFiles();
+    if ( pthread_create(&Connect->child, NULL, SendEvent, NULL) != 0 )  // Installo la funzione che gestisce gli eventi
+      printf("Pthread creazione SendEvent errore: %d - %s \n",errno,strerror(errno));
+    else {
+      pthread_detach(Connect->child);
+      printf("Connect WebSocket : thread che deve catturare gli eventi tid %ld\n",Connect->child);
+    }
+  }
 
-   // reset lenblk_limit flag
-   img_lenblk_limit_on = 0;
-   
-   // reset send image error code
-   send_img_ok = 0;
+  // reset lenblk_limit flag
+  img_lenblk_limit_on = 0;
+  
+  // reset send image error code
+  send_img_ok = 0;
 
-   return(0);
+  return(0);
 }
 int Init_WebSocket(int pk)
 {
@@ -995,14 +1225,14 @@ int InitAree_WebSocket(int pk)
 
 int SendCmd_WebSocket(int fd, char *msg,int opt) 						// Mascheratura del buffer da inviare
 {
-unsigned char *response;  												/* Response data.  */
-unsigned char frame[10];  												/* Frame.          */
-uint8_t idx_first_rData;  												/* Index data.     */
-uint64_t length;          												/* Message length. */
-int idx_response;         												/* Index response. */
-int output,i;               											/* Bytes sent.     */
-long sizeFile;
-FILE * fin;
+  unsigned char *response;  												/* Response data.  */
+  unsigned char frame[10];  												/* Frame.          */
+  uint8_t idx_first_rData;  												/* Index data.     */
+  uint64_t length;          												/* Message length. */
+  int idx_response;         												/* Index response. */
+  int output,i;               											/* Bytes sent.     */
+  long sizeFile;
+  FILE * fin;
 
   if (! opt ) {                            								// Devo inviare un ACK alla richiesta
     msg[0]='A';
@@ -1073,21 +1303,26 @@ FILE * fin;
   
   /* Add file bytes */
   if (opt==3){
-	sizeFile--;  
-//printf("Apro il file id %d\n",idx_response);
-    fin = fopen(FILE_IMG_TX_BASE64, "r");											// Apro il file da leggere
-    fread(&response[idx_response], sizeof(unsigned char), sizeFile, fin);// leggo il file in memoria
-    fclose(fin);														// Chiudo il file
-// printf("base64 = %s\n", &response[idx_response]);
+	  sizeFile--;  
+    //printf("Apro il file id %d\n",idx_response);
+    if (sizeFile <= 0) {
+      sizeFile = 0; // empty or non-existent file
+      printf ("Empty image file\n");
+    } else {
+      fin = fopen(FILE_IMG_TX_BASE64, "r");											// Apro il file da leggere
+      fread(&response[idx_response], sizeof(unsigned char), sizeFile, fin);// leggo il file in memoria
+      fclose(fin);														// Chiudo il file
+    }
+    // printf("base64 = %s\n", &response[idx_response]);
     idx_response += sizeFile ;											// Aggiorno il puntatore dei caratteri caricati in memoria
-//printf("Chiudo il file id %d\n",idx_response);
+    //printf("Chiudo il file id %d\n",idx_response);
     response[idx_response++] = ']';
   }
-  response[idx_response] = '\0';
-//  output = write(fd,response,idx_response);                   			// Invio richiesta sulla linea
 
+  response[idx_response] = '\0';
+  //  output = write(fd,response,idx_response);                   			// Invio richiesta sulla linea
   output = sendsock(fd, response, idx_response,0);
-printf("SendSock %d tot car %d %s\n",fd,idx_response,response + 1);
+  printf("SendSock %d tot car %d %s\n",fd,idx_response,response + 1);
 
   free(response);
   return (output);
@@ -1156,7 +1391,8 @@ char * appo_sch ;
 for(jj=0;jj<ncar;jj++) printf("%X.",car[jj]);			
 printf("\n");
 /* */
-  if (img_lenblk_limit_on || send_img_ok < 0) return;
+  if (img_lenblk_limit_on || send_img_ok < 0) 
+    return -1;
 
     for (jj=1;jj<=ncar;jj++){
   //printf("FLG_BUS %d- wait %d\n",Connect->flg_bus,Connect->wait_bus );
@@ -1212,10 +1448,16 @@ printf("%X %X %X %X %X %X %X %X %X %X %X %X %X %X\n",*car,*(car+1),*(car+2),*(ca
       break;
       default:
         if (Connect->flg_bus >= Connect->rx_var[5] || (Connect->power_on==3 && Connect->len_msg>0 && Connect->rx_var[7] == 0) ) {    // Inizio del pacchetto dati
-          Connect->appo_bus[Connect->addr_dev] = (*car) ^ Connect->rx_var[Connect->last_id_send % 4];
-          Connect->last_id_send ++ ;
-          Connect->addr_dev ++ ;										// in addr_dev ci trovo il numero di bytes ricevuti
-          Connect->flag_stop -- ;
+          if (Connect->addr_dev < MAX_APPO_BUS) {
+            Connect->appo_bus[Connect->addr_dev] = (*car) ^ Connect->rx_var[Connect->last_id_send % 4];
+            Connect->last_id_send ++ ;
+            Connect->addr_dev ++ ;										// in addr_dev ci trovo il numero di bytes ricevuti
+            Connect->flag_stop -- ;
+          } else {
+            trace(__LINE__,__FILE__,104,0,0,"Buffer go boom");
+            Connect->flag_stop = 0;
+            Connect->addr_dev = 0;
+          }
 		  if( Connect->len_msg - Connect->addr_dev == 0) {				// Se ho finito il buffer precedente e ne sto cominciando uno nuovo
 // printf("sopra %d Pacchetto lungo %d tot [%d] diff %d (last %d)\n",Connect->flag_stop,Connect->addr_dev,Connect->len_msg,Connect->len_msg-Connect->addr_dev,Connect->last_id_send);			
   		     Connect->last_id_send = Connect->len_msg = 0;
@@ -1235,19 +1477,19 @@ printf("%X %X %X %X %X %X %X %X %X %X %X %X %X %X\n",*car,*(car+1),*(car+2),*(ca
 		  else Connect->len_msg = (Connect->len_msg << 8) | * car ;
 //printf("[%d]=%X => %X\n",Connect->flg_bus,*car,Connect->len_msg);
 		}
-        car ++ ;
-        if((!Connect->flag_stop) && (Connect->addr_dev>0)) {
- //         trace(__LINE__,__FILE__,104,0,0,"Interpreto comando sul WebSocket");
-//printf("sotto Pacchetto lungo %d tot [%d] diff %d (last %d)\n",Connect->addr_dev,Connect->len_msg,Connect->len_msg-Connect->addr_dev,Connect->last_id_send);			
-		  Connect->len_msg -= Connect->addr_dev ;
-          Interpreta_WebSocket(Connect);              // Passo il buffer completo all'interprete dei messaggi custom
-          Connect->flg_bus = -1  ;                // Fine pacchetto
-          Connect->rx_var[8] = 0 ;
-        }
-      break;
+    car ++ ;
+    if((!Connect->flag_stop) && (Connect->addr_dev>0)) {
+    //trace(__LINE__,__FILE__,104,0,0,"Interpreto comando sul WebSocket");
+    //printf("sotto Pacchetto lungo %d tot [%d] diff %d (last %d)\n",Connect->addr_dev,Connect->len_msg,Connect->len_msg-Connect->addr_dev,Connect->last_id_send);			
+    Connect->len_msg -= Connect->addr_dev ;
+        Interpreta_WebSocket(Connect);              // Passo il buffer completo all'interprete dei messaggi custom
+        Connect->flg_bus = -1  ;                // Fine pacchetto
+        Connect->rx_var[8] = 0 ;
       }
-      Connect->flg_bus ++ ;
-      if( Connect->flg_bus == -2 ) {                // Frame errato o non gestito
+    break;
+    }
+    Connect->flg_bus ++ ;
+    if( Connect->flg_bus == -2 ) {                // Frame errato o non gestito
 #ifdef DEBUG_PRINT
 printf("Rispondo Errore Frame ricevuto non riconosciuto\n");
 #endif
@@ -1298,6 +1540,9 @@ printf("Send poll %s\n",msg);
  * @param hsrequest  richiesta del Client
  * @param hsresponse risposta del Server da inviare al Client che ha fatto richiesta
  */
+
+void lower(char *pstr){for(char *p = pstr;*p;++p) *p=*p>='A'&&*p<='Z'?*p|0x60:*p;}
+
 int getHSresponse(char *hsrequest, char **hsresponse)
 {
   char *s;
@@ -1943,6 +2188,56 @@ int kk;
   return(PAR_val[CMDTOT-1]);
 }
 
+int PlaceFile(const char*infile, const char *outfile) {
+  fwtype = none;
+  size_t offset;
+  int fileSize = dammiSize(infile);								// File di ingresso da decodificare 
+  FILE* fin = fopen(infile, "r");
+// printf("fin is %s\n", fin != NULL ? "OK" : "NO");
+  unsigned char* encod = (unsigned char *) malloc(fileSize);  							// Mi alloco la memoria per caricare l'immagine
+  int bytes_read = fread(encod, sizeof(unsigned char), fileSize, fin); 					// carico in un colpo solo l'immagine in memoria
+
+  if (bytes_read != fileSize) {
+    free(encod);
+    printf("Something wrong reading file: read %d bytes of %d\n", bytes_read, fileSize);
+    return -4;
+  }
+   unsigned char* img = base64_decode(encod, fileSize, &offset) ;
+  // printf("img %X encod %X offset %d\n",img,encod,offset);
+  fclose(fin);	
+/*
+  printf("encod = %s\n",encod);
+  printf("img = ");
+  for (int i=0; i<offset; i++) printf(" %.2x",img[i]);
+  printf("\n");
+*/
+  if (offset == 0 || img == NULL) {
+    printf("Error decoding file\n");
+    free(encod);
+    free(img);
+    return -1;
+  }
+
+  FILE* fout = fopen(outfile, "wb");									// File di uscita
+  // printf("fout is %s\n", fout != NULL ? "OK" : "NO");
+  int bytes_write = fwrite(img, sizeof(unsigned char), offset, fout); 										// Scrivo in un colpo solo il file codificato
+  fclose(fout);
+  free(img);
+  free(encod);
+
+#ifdef DEBUG_PRINT
+  printf("bytes read = %d/%d   bytes write = %d/%d\n",bytes_read, fileSize, bytes_write, offset);
+#endif
+
+  if (bytes_write != offset) {
+    printf("Something wrong writing decoded data\n");
+    return -2;
+  }
+  return 0;
+
+}
+
+
 int SendImage()
 {	
 #ifdef DEBUG_PRINT
@@ -1951,7 +2246,7 @@ int SendImage()
 
 	// ------- Converti il file da BASE64 a binario con un header x y profondita' ------- 
 
-  int offset;
+  size_t offset;
   int fileSize = dammiSize(FILE_IMG_RX_BASE64);								// File di ingresso da decodificare 
   FILE* fin = fopen(FILE_IMG_RX_BASE64, "r");
 // printf("fin is %s\n", fin != NULL ? "OK" : "NO");
@@ -1959,8 +2254,9 @@ int SendImage()
   int bytes_read = fread(encod, sizeof(unsigned char), fileSize, fin); 					// carico in un colpo solo l'immagine in memoria
 
   if (bytes_read != fileSize) {
+    free(encod);
     printf("Something wrong reading file: read %d bytes of %d\n", bytes_read, fileSize);
-    return;
+    return -4;
   }
 
 #ifdef DEBUG_PRINT
@@ -1977,6 +2273,8 @@ int SendImage()
 */
   if (offset == 0 || img == NULL) {
     printf("Error decoding file\n");
+    free(encod);
+    free(img);
     return -1;
   }
 
@@ -1998,7 +2296,7 @@ int SendImage()
 
   //  ------- Invia tramite SOCKET allo Zynq ------- 
   //  ------- Ricevi dal SOCKET un immagine in binario con header x y e profondita' ------- 
-  // InvertiImage();
+  
 
   char curlcmd[256];
   sprintf(curlcmd, "curl -o %s --http0.9 --data-binary @%s --local-port %d --interface %s %s:%d -H User-Agent: -H Accept: -H Host: -H Content-Length: -H Content-Type: -H Expect: --max-time %d", FILE_IMG_TX_BINARY, FILE_IMG_RX_BINARY, IMG_LOCAL_PORT, IMG_LOCAL_INTERFACE, IMG_ZYNQ_IP_ADDR, IMG_ZYNQ_PORT, IMG_SENDCMD_TIMEOUT);
@@ -2044,81 +2342,6 @@ int SendImage()
 }
 
 
-InvertiImage()
-{
-int i,fileSize;
-int offset;
-unsigned char * img;
-unsigned char * encod;
-FILE * fin;
-FILE * fout;
-/*
-printf("Inverti Immagine\n");
-    fileSize = dammiSize(FILE_RX_IMMAGINE);								// File di ingresso da decodificare 
-printf("Size file %d\n",fileSize);
-    fin = fopen(FILE_RX_IMMAGINE, "r");
-	encod = (unsigned char *) malloc(fileSize);  							// Mi alloco la memoria per caricare l'immagine
-printf("encod %X size %d\n",encod,fileSize);
-    fread(encod, sizeof(unsigned char), fileSize, fin); 					// carico in un colpo solo l'immagine in memoria
-printf("Chiamo la decode %d\n",fileSize);
-    img = base64_decode(encod, fileSize, &offset) ;
-    fclose(fin);	
-printf("img %X encod %X offset %d\n",img,encod,offset);
-//    free(encod);
-*/   
-  fileSize = dammiSize(FILE_IMG_RX_BINARY);
-  fin = fopen(FILE_IMG_RX_BINARY, "rb");
-  img = (unsigned char *) malloc(fileSize);  							// Mi alloco la memoria per caricare l'immagine
-  fread(img, sizeof(unsigned char), fileSize, fin); 					// carico in un colpo solo l'immagine in memoria
-  offset = fileSize;
-
-	if (img!=NULL) {
-// printf("Decodificato il file %X %d\n",img,offset); // ,img[0],img[1]);
-/*	
-    fileSize = dammiSize(FILE_RX_IMMAGINE) - 54;						// File di ingresso BMP
-    fin = fopen(FILE_RX_IMMAGINE, "r");
-    fread(info, sizeof(unsigned char), 54, fin); 						// leggo i 54-bytes di header
-    memcpy(&offset, info + 10, sizeof(int));
-	img = (unsigned char *) malloc(fileSize);  							// Mi alloco la memoria per caricare l'immagine
-*/
-
-	    fileSize = offset - 54 ;
-printf("img+10 %X offset %d @ %X size %d\n",img+10,offset,&offset,sizeof(int));
-		memcpy(&offset,img+10, sizeof(int));
-printf("offset %d\n",offset);
-		encod = img + 54;
-printf("img %X encod %X\n",img,encod);
-		
-printf("Apro il file di uscita\n");
-#ifdef DEBUG_INVERSIONE_FILE
- 		for(i = offset-54; i < fileSize; i += 3) 						// Manipolo i dati dell'immagine saltando l'eventuale tavolozza 
-		{
-			encod[i]  = 255-encod[i] ;											// Inverto i valori di RGB
-			encod[i+1]= 255-encod[i+1] ;
-			encod[i+2]= 255-encod[i+2] ;
-		}
-#endif
-		fileSize += 54 ;
-
-// printf("Chiamo la encode %d\n",fileSize);
-		//encod = base64_encode_nocr(img, fileSize, &offset) ;
-    offset = fileSize;
-		fin = fopen(FILE_IMG_TX_BINARY, "wb");									// File di uscita
-		if (fin <0 )
-printf("Errore apertura file in scrittura %d, %d\n",fin,errno);
-		else {
-printf("Write del file %d\n",offset);
-			fwrite(img, sizeof(unsigned char), offset, fin); 										// Scrivo in un colpo solo il file codificato
-			fclose(fin);
-		}
-		free (img) ;														// Libero la memoria allocata
-printf("Rigirato il file\n");
-	}
-	else {
-printf("Errori di decodifica BASE64\n");
-	}
-    return ;
-}
 
 void CleanupImgFiles() {
 #ifdef DEBUG_PRINT

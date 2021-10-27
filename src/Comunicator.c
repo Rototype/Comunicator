@@ -21,7 +21,6 @@ int stime (const time_t *when)
 void msec_sleep(int);
 int checkDb(int);
 int openClientSocket(int,int,char *);
-int DammiGPIObit(char *);
 int set_config(char *,char *, char *);
 int get_config(char *,char *, char *);
 int SecondiDiff(char *,char *);
@@ -43,6 +42,7 @@ int coda_wait ;
 /************************** MAIN FUNCTION SECTION ***********************************/
 int main(int argc,char **argv)
 {
+
 struct tm *dt;
 time_t t;
 char * shared_memory ;
@@ -59,11 +59,6 @@ char **brr = NULL ;
 struct wassi * ptrax;
 double fappo;
 
-/*
- 	InvertiImage();
-	exit(0);
-*/
-  
   openlog("Comunicator", 0, LOG_USER);                          		// Vedere i messaggi con il comando: <grep Comunicator /var/log/user.log>
 
 																		// Controllo l'ora se ha un settaggio accettabile
@@ -340,8 +335,8 @@ printf("Dichiarato canale GPIO questa configurazione e' valida solo per CustomBo
   }
 
   while(1){
-    pthread_exit(0); // S'addormenta per sempre .......
-//    msec_sleep(60000);                                      // S'addormenta per 1 minuto e poi ritorna qui .....
+   // pthread_exit(0); // S'addormenta per sempre .......
+    msec_sleep(60000);                                      // S'addormenta per 1 minuto e poi ritorna qui .....
   }
 
 }
@@ -520,12 +515,6 @@ printf("canale %d timer = %d polcan in TAU = %d\n",kk,ptr[kk]->timer,ptr[kk]->po
 /* ------------------------------------------------------------------ */
 }
 
-int DammiGPIObit(char *nome_sig)                    // Funzione di servizio che restituisce un indice in base ad un nome ASCII del Segnale definito nelle variabili utilizzate
-{
- int kk;
-  for(kk=0;kk<32;kk++) if ( !strcmp(nome_sig,gpio_sgn[kk]) ) return(kk) ;
-  return(33);
-}
 /***********************************************************************
  *                                                                     *
  *                         M E M O R Y                                 *
@@ -2438,79 +2427,6 @@ int instring(char *str, char c)
     }
     return(0); // Non trovato
 }
-/***********************************************************************
- * stringa da separare
- * stringa di separatori
- * array di stringhe con i singoli valori separati
- * Una volta          che la funzione rientra dopo aver adoperato l'array di stringhe
- * si deve liberare la memoria con una free(arr) ; Se bah... Piacerebbe.
- * */
-int splitstr(char *str, char *sepa, char ***arr)
-{
-    int count = 1;
-    int token_len = 1;
-    int i = 0;
-    char *p;
-    char *t;
-    int kk,jj,trov;
-
-    kk = strlen(sepa) ;                         							// Quanti separatori devo gestire ?
-    p = str;
-    while (*p != '\0')
-    {
-    for(jj=0;jj<kk;jj++) if (*p == sepa[jj] ) count++;
-        p++;
-    }
-
-    *arr = (char**) malloc(sizeof(char*) * count);            			// Mi alloco il numero di puntatori che mi serviranno
-    if (*arr == NULL) return(0);
-
-    p = str;
-    while (*p != '\0')
-    {
-    for(trov=jj=0;jj<kk;jj++) if(*p == sepa[jj]){trov=1;break;}
-        if ( trov )
-        {
-          (*arr)[i] = (char*) malloc( sizeof(char) * token_len );   	// Mi alloco lo spazio per i singoli array
-          if ((*arr)[i] == NULL) return(0);
-      token_len = 0;
-          i++;
-        }
-        p++;
-        token_len++;
-    }
-
-  if(token_len>1) {
-    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );     		// Mi alloco lo spazio per l'ultima stringa se non c'e' un separatore come ultimo carattere
-    if ((*arr)[i] == NULL) return(0);
-  }
-  else count--;                           								// Altrimenti ho un array in meno
-
-    i = 0;
-    p = str;
-    t = ((*arr)[i]);
-    while (*p != '\0')
-    {
-    for(trov=jj=0;jj<kk;jj++) if(*p == sepa[jj]){trov=1;break;}
-
-        if (!(trov) && (*p != '\0'))
-        {
-            *t = *p;
-            t++;
-            *t = '\0';                          						// ipotesi che ci sara' un fine stringa
-        }
-        else
-        {
-      if(*(p+1)!='\0'){                     							// Se non sono sul fine stringa apro un altro array
-        *t = '\0';
-        i++;
-        t = ((*arr)[i]);
-      }
-        }
-        p++;
-    }
-    return count;
-}
 
 /**
  *  Conversione da long ad indirizzo IP ASCII
@@ -2595,8 +2511,7 @@ int kk,jj ;
         }
       }
 }
-void lower(char *pstr){for(char *p = pstr;*p;++p) *p=*p>='A'&&*p<='Z'?*p|0x60:*p;}
-void upper(char *pstr){for(char *p = pstr;*p;++p) *p=*p>='a'&&*p<='z'?*p&0xDF:*p;}
+
 // --------------------------------------------------------- FINE FUNZIONI SULLE STRINGHE -----------------------------------------------------
 // ################################################### FUNZIONI SUI FILES ######################################################
 int EsisteFile(int opt)
@@ -2675,175 +2590,7 @@ char buf[200];
 
 
 }
-// Funzione che modifica il file di risoluzione del dns per il server e il localname
-/*
 
-127.0.0.1       localhost hal9ce1ec  : il nome si risolve come HAL e gli ultimi 3 byte del mac address
-::1             localhost ip6-localhost ip6-loopback
-fe00::0         ip6-localnet
-ff00::0         ip6-mcastprefix
-ff02::1         ip6-allnodes
-ff02::2         ip6-allrouters
-
-10.0.0.241      server
-*/
-
-void aggiorna_hosts(char * nuovoip,int tipo)
-{
-FILE *fp,*newfile;
-int trovato ;
-char nf[]="/etc/hosts";
-char stringa[200],local_name[20];
-
-  strcpy(local_name,"crono");
-  if (tipo==1) strcpy(local_name,"hal");
-  dammi_mac(stringa);
-  strcat(local_name,stringa);
-  aggiorna_hostname(local_name);
-
-  fp = fopen(nf,"r");
-  newfile = fopen("tmp.file","w");                    // Apro un file di appoggio per aggiornare i valori
-  if(fp<=0) {                               // Se il file non esiste
-      trace(__LINE__,__FILE__,1000,0,0,"File di risoluzione dns <%s> non trovato, lo creo di default",nf);
-      sprintf(stringa,"127.0.0.1       localhost %s\n",local_name);
-      if (newfile) fputs(stringa,newfile);
-      sprintf(stringa,"::1             localhost ip6-localhost ip6-loopback\n");
-      if (newfile) fputs(stringa,newfile);
-      sprintf(stringa,"fe00::0         ip6-localnet\n");
-      if (newfile) fputs(stringa,newfile);
-      sprintf(stringa,"ff00::0         ip6-mcastprefix\n");
-      if (newfile) fputs(stringa,newfile);
-      sprintf(stringa,"ff02::1         ip6-allnodes\n");
-      if (newfile) fputs(stringa,newfile);
-      sprintf(stringa,"ff02::2         ip6-allrouters\n");
-      if (newfile) fputs(stringa,newfile);
-      sprintf(stringa,"%s      server\n",nuovoip);
-      if (newfile) fputs(stringa,newfile);
-  }
-  else {
-    trovato = 0 ;
-    while(fgets(stringa,160,fp)){                     // Leggo il file sorgente
-      if ( strstr(stringa,"127.0.0.1")   ){               // Modifico il local name
-        sprintf(stringa,"127.0.0.1       localhost %s\n",local_name);
-        if (newfile) fputs(stringa,newfile);
-      }
-      else{
-        if ( strstr(stringa,"server")   ){                // Modifico l'ip del server
-          sprintf(stringa,"%s      server\n",nuovoip);
-          if (newfile) fputs(stringa,newfile);
-        }
-        else{
-          if (newfile) fputs(stringa,newfile);              // Scarico il resto del file in quello nuovo
-        }
-      }
-    }
-    fclose (fp);
-    fclose (newfile);
-    if(!rename(nf,"appo")) {                      // Rinomino il vecchio file in uno di appoggio
-      if (!rename("tmp.file",nf)) {                   // Rinomino il nuovo file con il suo nome corretto
-        sprintf(stringa,"sudo chmod 777 %s",nf);
-        system(stringa);
-        remove("appo");                             // se tutto OK cancello il vecchio di appoggio
-      }
-      else rename("appo",nf) ;                        // Se va male il rename ripristino il vecchio
-    }
-  }
-}
-void aggiorna_hostname(char * nuovonome)
-{
-FILE *newfile;
-int trovato ;
-char nf[]="/etc/hostname";
-char stringa[200];
-  newfile = fopen("tmp.file","w");                    // Apro un file di appoggio per aggiornare i valori
-  if (newfile) {
-    sprintf(stringa,"%s\n",nuovonome);
-    fputs(stringa,newfile);
-    fclose (newfile);
-
-    if(!rename(nf,"appo")) {                      // Rinomino il vecchio file in uno di appoggio
-      if (!rename("tmp.file",nf)) {                   // Rinomino il nuovo file con il suo nome corretto
-        sprintf(stringa,"sudo chmod 777 %s",nf);
-        system(stringa);
-        remove("appo");                             // se tutto OK cancello il vecchio di appoggio
-      }
-      else rename("appo",nf) ;                        // Se va male il rename ripristino il vecchio
-    }
-  }
-}
-
-void aggiorna( char * nuovoip, char * subnet, char *gway )
-{
-FILE *fp,*newfile;
-int trovato ;
-char nf[]=NETWORK_FILE;
-char stringa[200];
-
-  fp = fopen(nf,"r");
-
-  if(fp<=0) {                               // Se il file non esiste
-      trace(__LINE__,__FILE__,1000,0,0,"File di configurazione rete <%s> non trovato",nf);
-      return;
-  }
-  if( fp ){
-    newfile = fopen("tmp.file","w");                  // Apro un file di appoggio per aggiornare i valori
-    trovato = 0 ;
-    while(fgets(stringa,160,fp)){                     // Leggo il file sorgente
-        if ( ( strstr(stringa,"iface eth0 inet") == NULL)  ){
-          if (newfile) fputs(stringa,newfile);              // Scarico la parte prima del file in quello nuovo
-        }
-        else{
-          if(strlen(nuovoip )>1) {
-            sprintf(stringa,"iface eth0 inet static\n");
-            if (newfile) fputs(stringa,newfile);
-            sprintf(stringa,"     address %s\n",nuovoip);
-            if (newfile) fputs(stringa,newfile);
-            sprintf(stringa,"     netmask %s\n",subnet);
-            if (newfile) fputs(stringa,newfile);
-            sprintf(stringa,"     gateway %s\n",gway);
-          }
-          else strcpy(stringa,"iface eth0 inet dhcp\n");
-          if (newfile) fputs(stringa,newfile);              // Scrive
-          strcpy(stringa,"     dns-nameservers 8.8.8.8\n");
-          if (newfile) fputs(stringa,newfile);              // Scrive
-          trovato = 1 ;
-          break;
-        }
-    }
-    fclose (fp);
-    fclose (newfile);
-    if (trovato == 1){                          // Devo sostituire il file
-      if(!rename(nf,"appo")) {                      // Rinomino il vecchio file in uno di appoggio
-        if (!rename("tmp.file",nf)) {                   // Rinomino il nuovo file con il suo nome corretto
-             sprintf(stringa,"sudo chmod 777 %s",nf);
-             system(stringa);
-             remove("appo");                            // se tutto OK cancello il vecchio di appoggio
-        }
-        else rename("appo",nf) ;                        // Se va male il rename ripristino il vecchio
-      }
-    }
-  }
-  else
-  {
-      trace(__LINE__,__FILE__,1000,0,0,"Errore nella gestione del file di configurazione rete");
-      return;
-  }
-
-}
-
-void dammi_mac(char *address)
-{
-  struct ifreq s;
-  int fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-
-  strcpy(s.ifr_name, "eth0");
-  if (0 == ioctl(fd, SIOCGIFHWADDR, &s)) {
-      sprintf(address,"%02x%02x%02x", (unsigned char) s.ifr_addr.sa_data[3],(unsigned char) s.ifr_addr.sa_data[4],(unsigned char) s.ifr_addr.sa_data[5]);
-//    printf("%s\n",address);
-  }
-  else strcpy(address,"000000");
-  return ;
-}
 
 int dammiNomeDbSQLite(char * nome)
 {
