@@ -413,25 +413,32 @@ int brr_cnt = 0;
             }
             CleanupImgFiles();
           } else {
+            char* update_file = "";
             switch(fwtype) {
               case fpga:
                 send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_FPGA_BIN);
                 sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateFirmware],SlaveUnit[1]);
+                update_file = UPDT_IMG_FPGA_BIN;
                 break;
               case soc:
                 send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_SOC_BIN);
                 sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateFirmware],SlaveUnit[2]);
+                update_file = UPDT_IMG_SOC_BIN;
                 break;
               case service:
                 send_img_ok = PlaceFile(FILE_IMG_RX_BASE64, FILE_IMG_SERVICE_BIN);
                 sprintf(Connect->appo_bus,"%s@%s#",CMD_tab[CMD_UpdateWebSocketFirmware],SlaveUnit[0]);
+                update_file = UPDT_IMG_SERVICE_BIN;
                 break;
               default:
-                send_img_ok = 0;
+                send_img_ok = -1;
+                printf("Unknown file format %d\n", fwtype);
                 break;
             }
             
             if (send_img_ok == 0) {
+              FILE* updatefile = fopen(update_file, "w"); // this file will trigger the update on next boot
+              fclose(updatefile);
               SendCmd_WebSocket(Connect->client,Connect->appo_bus,2); // Invio risposta al Client WebSocket
               for(rc=0;kk<Connect->addr_dev;kk++) 
                 Connect->appo_bus[rc]=Connect->appo_bus[kk];
@@ -636,18 +643,18 @@ printf("Comando %s \n",CMD_tab[kk]);
       int ret = 0;
       FILE* configfile = fopen(FILE_NETWORK_CFG, "w");
 
-      ret = GetJsonValue(room, 64, "IpAddress", brr[2]);
+      ret = GetJsonValue(room, 64, "ipaddr", brr[2]);
       fprintf(configfile, "ipaddr=%s\n", room);
-      ret = GetJsonValue(room, 64, "DefaultGateway", brr[2]);
+      ret = GetJsonValue(room, 64, "gwaddr", brr[2]);
       fprintf(configfile, "gwaddr=%s\n", room);
-      ret = GetJsonValue(room, 64, "DHCP", brr[2]);
+      ret = GetJsonValue(room, 64, "dhcp_mode", brr[2]);
       fprintf(configfile, "dhcp_mode=");
-      if (strcmp(room, "true")) {
+      if (!strcmp(room, "enable")) {
         fprintf(configfile, "enable\n");
       } else {
         fprintf(configfile, "disable\n");
       }
-      ret = GetJsonValue(room, 64, "SubnetMask", brr[2]);
+      ret = GetJsonValue(room, 64, "ipmask", brr[2]);
       fprintf(configfile, "ipmask=%s\n", room);
       fclose(configfile);
 
@@ -1033,6 +1040,8 @@ printf("Comando %s \n",CMD_tab[kk]);
       }
 		break;
 		default:
+      Connect->power_on = 2;
+      typeBlk =  0; 											// Fine di accumulo nel buffer
       if (img_lenblk_limit_on || send_img_ok < 0) 
         break;
 		  trace(__LINE__,__FILE__,498,0,0,"Comando non riconosciuto %d", kk);
@@ -1044,6 +1053,8 @@ printf("Comando %s \n",CMD_tab[kk]);
 	  free(brr); // Libero l'area di split del comando
 	  }
 	  else {
+      Connect->power_on = 2;
+      typeBlk =  0; 											// Fine di accumulo nel buffer
       if (img_lenblk_limit_on || send_img_ok < 0) 
         return;
 		  trace(__LINE__,__FILE__,498,0,0,"Comando non riconosciuto %s",Connect->appo_bus);
@@ -2234,6 +2245,8 @@ int PlaceFile(const char*infile, const char *outfile) {
     printf("Something wrong writing decoded data\n");
     return -2;
   }
+
+  printf("Saved file \"%s\"\n", outfile);
   return 0;
 
 }

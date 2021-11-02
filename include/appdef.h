@@ -14,8 +14,14 @@
 #define FILE_TX_1		 "log/invia1"									// Nome file di appoggio per la trasmissione su WebSocket
 
 #define FILE_IMG_SERVICE_BIN	"/home/root/update/Comunicator"
+#define UPDT_IMG_SERVICE_BIN	"/home/root/update/_update"				// if this file is present the firmware will be loaded on next boot
+
 #define FILE_IMG_SOC_BIN		"/home/root/update/soc.bin"
+#define UPDT_IMG_SOC_BIN		"/home/root/update/_update"
+
 #define FILE_IMG_FPGA_BIN		"/home/root/update/fpga.bin"
+#define UPDT_IMG_FPGA_BIN		"/home/root/update/_update"
+
 #define FILE_IMG_RX_BASE64	"img/rx_base64"						// Nome file su cui si riceve da WebSocket l'immagine codificata Base64
 #define FILE_IMG_RX_BINARY	"img/rx_binary"						// Nome file su cui si salva l'immagine ricevuta da WebSocket decodificata in binary
 #define FILE_IMG_TX_BINARY	"img/tx_binary"						// Nome file su cui si riceve da Zynq l'immagine eleborata in binary
